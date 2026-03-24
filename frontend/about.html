@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - WizDesk</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Include all the CSS from above here */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .footer-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 80px 20px 40px;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        .footer-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .footer-header h1 {
+            font-size: 3rem;
+            color: #333;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .footer-header p {
+            font-size: 1.2rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .content-section {
+            margin-bottom: 40px;
+        }
+
+        .content-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .content-section p {
+            color: #555;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+            border: 1px solid #e9ecef;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-home {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .footer-container {
+                padding: 30px 20px;
+            }
+            
+            .footer-header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="footer-page">
+        <div class="footer-container">
+            <div class="footer-header">
+                <h1>About WizDesk</h1>
+                <p>Revolutionizing team collaboration and task management</p>
+            </div>
+
+            <div class="content-section">
+                <h2>Our Story</h2>
+                <p>Founded in 2025, WizDesk emerged from a simple observation: teams were struggling with inefficient task management systems that hindered productivity rather than enhancing it. We set out to create a platform that would truly understand and address the needs of modern teams.</p>
+                
+                <p>Today, WizDesk serves thousands of teams worldwide, helping them streamline their workflows, enhance collaboration, and achieve their goals more efficiently than ever before.</p>
+            </div>
+
+            <div class="content-section">
+                <h2>Our Mission</h2>
+                <p>To empower teams of all sizes with intuitive, powerful, and accessible task management tools that foster collaboration, transparency, and productivity. We believe that when teams work smarter, they achieve greater things.</p>
+            </div>
+
+            <div class="content-section">
+                <h2>Why Choose WizDesk?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3>Lightning Fast</h3>
+                        <p>Experience blazing-fast performance with our optimized platform designed for speed and efficiency.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3>Secure & Reliable</h3>
+                        <p>Your data's security is our top priority with enterprise-grade security measures in place.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3>Team-Focused</h3>
+                        <p>Built specifically for team collaboration with features that enhance communication and coordination.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h2>Our Values</h2>
+                <p><strong>Innovation:</strong> We continuously evolve our platform to incorporate the latest technologies and best practices.</p>
+                <p><strong>Simplicity:</strong> We believe powerful tools should be easy to use and accessible to everyone.</p>
+                <p><strong>Transparency:</strong> We're open about our processes and committed to building trust with our users.</p>
+                <p><strong>Community:</strong> We listen to our users and build features that address real-world challenges.</p>
+            </div>
+
+            <div class="back-home">
+                <a href="index.html" class="back-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

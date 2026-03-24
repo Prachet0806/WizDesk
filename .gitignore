@@ -1,0 +1,49 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+*.manifest
+*.spec
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Django
+*.sqlite3
+staticfiles/
+local_settings.py
+db.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

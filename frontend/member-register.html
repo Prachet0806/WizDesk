@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register as Member - WizDesk</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+            padding: 20px;
+        }
+
+        header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+
+        .form-card h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input.error {
+            border-color: #dc3545;
+            background: #f8f7ff;
+        }
+
+        input.success {
+            border-color: #28a745;
+        }
+
+        input:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .password-match {
+            display: none;
+            font-size: 14px;
+            margin-top: 5px;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .password-match.error {
+            display: block;
+            color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .password-match.success {
+            display: block;
+            color: #155724;
+            background: #d4edda;
+        }
+
+        .password-strength {
+            margin-top: 5px;
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .password-strength.weak {
+            display: block;
+            color: #721c24;
+            background: #f8d7da;
+        }
+
+        .password-strength.medium {
+            display: block;
+            color: #856404;
+            background: #fff3cd;
+        }
+
+        .password-strength.strong {
+            display: block;
+            color: #155724;
+            background: #d4edda;
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            margin: 3px 0;
+        }
+
+        .requirement.met {
+            color: #28a745;
+        }
+
+        .requirement.unmet {
+            color: #dc3545;
+        }
+
+        .requirement-icon {
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-verify {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .btn-verify:hover:not(:disabled) {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        /* Verification Section */
+        .verification-section {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .verification-status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+
+        .verification-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .verification-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .verification-code-input {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        /* Success Message */
+        .success-message {
+            display: none;
+            margin-top: 20px;
+            padding: 30px;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .success-message h3 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+
+        .success-message p {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .team-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .info-box p {
+            color: #0066cc;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Message Styles */
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .message.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .message.error {
+            background: linear-gradient(135deg, #dc3545, #e83e8c);
+        }
+
+        .message.warning {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+        }
+
+        /* Loading State */
+        .btn-primary.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .btn-primary.loading::after {
+            content: ' ⏳';
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .form-card {
+                padding: 30px 25px;
+            }
+            
+            header h1 {
+                font-size: 2.5rem;
+            }
+            
+            body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WizDesk</h1>
+            <p>Join Your Team</p>
+        </header>
+
+        <div class="form-container">
+            <div class="form-card">
+                <h2>Register as Team Member</h2>
+                
+                <div class="info-box">
+                    <p>💡 Ask your Team Leader for the Team Code to join their team</p>
+                </div>
+
+                <!-- Registration Form -->
+                <form id="memberRegisterForm">
+                    <div class="form-group">
+                        <input type="text" id="memberName" placeholder="Your Full Name" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="memberEmail" placeholder="Email Address" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="memberPassword" placeholder="Password" required minlength="6">
+                        <div id="passwordStrength" class="password-strength"></div>
+                        <div class="password-requirements">
+                            <div class="requirement" id="reqLength">
+                                <span class="requirement-icon">○</span>
+                                At least 6 characters
+                            </div>
+                            <div class="requirement" id="reqSpecial">
+                                <span class="requirement-icon">○</span>
+                                At least 1 special character (!@#$%^&* etc.)
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+                        <div id="passwordMatch" class="password-match"></div>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="memberTeamCode" placeholder="Team Code (from your leader)" required>
+                    </div>
+                    
+                    <button type="button" class="btn-primary btn-verify" id="verifyEmailBtn">
+                        Verify Your Email
+                    </button>
+                </form>
+
+                <!-- Verification Section (Hidden initially) -->
+                <div id="verificationSection" style="display: none;">
+                    <div class="verification-section">
+                        <h3>Step 2: Verify Your Email</h3>
+                        <div id="teamInfo" class="team-info" style="display: none;">
+                            <p><strong>Team:</strong> <span id="teamNameDisplay"></span></p>
+                        </div>
+                        <div id="verificationStatus" class="verification-status verification-pending">
+                            📧 Check your email for verification link
+                        </div>
+                        
+                        <div id="verificationSuccess" style="display: none;">
+                            <div class="verification-status verification-success">
+                                ✅ Email verified successfully!
+                            </div>
+                            <p>Your email has been verified. Click "Complete Registration" to join the team.</p>
+                        </div>
+
+                        <div id="manualVerification" style="display: none;">
+                            <p style="margin-bottom: 10px; color: #666;">If you didn't receive the email, enter the verification code manually:</p>
+                            <div class="form-group">
+                                <input type="text" id="manualTokenInput" placeholder="Enter verification code" class="verification-code-input">
+                            </div>
+                            <button type="button" class="btn-primary" id="manualVerifyBtn">
+                                Verify Code
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary" id="completeRegistrationBtn" style="display: none;">
+                        Complete Registration
+                    </button>
+                </div>
+                
+                <div id="successMessage" class="success-message">
+                    <h3>🎉 Registration Successful!</h3>
+                    <p>You have successfully joined the team!</p>
+                    <div class="team-info">
+                        <p><strong>Team:</strong> <span id="successTeamName"></span></p>
+                        <p><strong>Status:</strong> Pending Leader Approval</p>
+                    </div>
+                    <p>Your team leader has been notified and will review your membership request shortly.</p>
+                    <p>You will receive an email once your membership is approved.</p>
+                    <button onclick="window.location.href='index.html'" class="btn-primary" style="background: linear-gradient(135deg, #28a745, #20c997); margin-top: 15px;">Go to Login</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button onclick="window.location.href='index.html'" class="btn-secondary">Back to Login</button>
+                </div>
+
+                <p class="back-link">
+                    Are you a Team Leader? <a href="register-leader.html">Create a team here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+
+        // Utility function for showing messages
+        const showMessage = (message, type = 'success') => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 4000);
+        };
+
+        // DOM Elements
+        const memberRegisterForm = document.getElementById('memberRegisterForm');
+        const verificationSection = document.getElementById('verificationSection');
+        const verificationStatus = document.getElementById('verificationStatus');
+        const verificationSuccess = document.getElementById('verificationSuccess');
+        const manualVerification = document.getElementById('manualVerification');
+        const successMessage = document.getElementById('successMessage');
+        const teamInfo = document.getElementById('teamInfo');
+        const teamNameDisplay = document.getElementById('teamNameDisplay');
+        const successTeamName = document.getElementById('successTeamName');
+        const verifyEmailBtn = document.getElementById('verifyEmailBtn');
+        const manualVerifyBtn = document.getElementById('manualVerifyBtn');
+        const completeRegistrationBtn = document.getElementById('completeRegistrationBtn');
+        const passwordInput = document.getElementById('memberPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const passwordMatchDiv = document.getElementById('passwordMatch');
+        const passwordStrengthDiv = document.getElementById('passwordStrength');
+
+        // Password requirements elements
+        const reqLength = document.getElementById('reqLength');
+        const reqSpecial = document.getElementById('reqSpecial');
+
+        let verificationToken = '';
+        let teamName = '';
+
+        // Enhanced password strength checker with special character requirement
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            let feedback = '';
+            let requirements = {
+                length: false,
+                special: false
+            };
+
+            // Length check (minimum 6 characters)
+            if (password.length >= 6) {
+                strength++;
+                requirements.length = true;
+            } else {
+                feedback = 'Password must be at least 6 characters';
+            }
+
+            // Special character check
+            if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+                strength++;
+                requirements.special = true;
+            } else if (!feedback) {
+                feedback = 'Password must include at least 1 special character';
+            }
+
+            // Update requirement indicators
+            updateRequirementIndicators(requirements);
+
+            // Determine strength level
+            if (strength < 2) {
+                return { level: 'weak', message: feedback || 'Weak password', requirements };
+            } else if (strength === 2) {
+                return { level: 'strong', message: 'Strong password', requirements };
+            } else {
+                return { level: 'strong', message: 'Strong password', requirements };
+            }
+        }
+
+        // Update requirement indicators
+        function updateRequirementIndicators(requirements) {
+            // Length requirement
+            if (requirements.length) {
+                reqLength.className = 'requirement met';
+                reqLength.innerHTML = '<span class="requirement-icon">✓</span> At least 6 characters';
+            } else {
+                reqLength.className = 'requirement unmet';
+                reqLength.innerHTML = '<span class="requirement-icon">✗</span> At least 6 characters';
+            }
+
+            // Special character requirement
+            if (requirements.special) {
+                reqSpecial.className = 'requirement met';
+                reqSpecial.innerHTML = '<span class="requirement-icon">✓</span> At least 1 special character (!@#$%^&* etc.)';
+            } else {
+                reqSpecial.className = 'requirement unmet';
+                reqSpecial.innerHTML = '<span class="requirement-icon">✗</span> At least 1 special character (!@#$%^&* etc.)';
+            }
+        }
+
+        // Password match checker
+        function checkPasswordMatch() {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            if (confirmPassword === '') {
+                passwordMatchDiv.className = 'password-match';
+                confirmPasswordInput.classList.remove('error', 'success');
+                return false;
+            }
+
+            if (password === confirmPassword) {
+                passwordMatchDiv.textContent = '✓ Passwords match';
+                passwordMatchDiv.className = 'password-match success';
+                confirmPasswordInput.classList.remove('error');
+                confirmPasswordInput.classList.add('success');
+                return true;
+            } else {
+                passwordMatchDiv.textContent = '✗ Passwords do not match';
+                passwordMatchDiv.className = 'password-match error';
+                confirmPasswordInput.classList.remove('success');
+                confirmPasswordInput.classList.add('error');
+                return false;
+            }
+        }
+
+        // Form validation
+        function validateForm() {
+            const name = document.getElementById('memberName').value;
+            const email = document.getElementById('memberEmail').value;
+            const password = passwordInput.value;
+            const teamCode = document.getElementById('memberTeamCode').value;
+            
+            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            const passwordStrength = checkPasswordStrength(password);
+            const isPasswordValid = passwordStrength.requirements.length && passwordStrength.requirements.special;
+            const isPasswordMatch = checkPasswordMatch();
+            const isFormComplete = name && email && password && teamCode;
+
+            verifyEmailBtn.disabled = !(isFormComplete && isEmailValid && isPasswordValid && isPasswordMatch);
+        }
+
+        // Send verification email
+        async function sendVerificationEmail() {
+            const name = document.getElementById('memberName').value;
+            const email = document.getElementById('memberEmail').value;
+            const password = passwordInput.value;
+            const teamCode = document.getElementById('memberTeamCode').value.toUpperCase();
+
+            // Disable form fields
+            document.querySelectorAll('#memberRegisterForm input').forEach(input => {
+                input.disabled = true;
+            });
+
+            verifyEmailBtn.textContent = 'Sending Verification...';
+            verifyEmailBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/send-member-verification`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, teamCode })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    verificationToken = result.verificationToken;
+                    teamName = result.teamName;
+                    
+                    // Show verification section
+                    memberRegisterForm.style.display = 'none';
+                    verificationSection.style.display = 'block';
+                    
+                    // Show team info
+                    if (teamName) {
+                        teamNameDisplay.textContent = teamName;
+                        teamInfo.style.display = 'block';
+                    }
+                    
+                    if (result.emailSent && result.emailMethod === 'email') {
+                        showMessage('Mock email sent! Token auto-filled below.', 'success');
+                        manualVerification.style.display = 'block';
+                        document.getElementById('manualTokenInput').value = verificationToken;
+                    } else {
+                        // Email service not configured, show manual token
+                        showMessage('Email service not available. Use manual verification.', 'warning');
+                        manualVerification.style.display = 'block';
+                    }
+                } else {
+                    showMessage(result.error, 'error');
+                    // Re-enable form fields if failed
+                    document.querySelectorAll('#memberRegisterForm input').forEach(input => {
+                        input.disabled = false;
+                    });
+                    verifyEmailBtn.textContent = 'Verify Your Email';
+                    validateForm();
+                }
+            } catch (error) {
+                showMessage('Failed to send verification email', 'error');
+                // Re-enable form fields if failed
+                document.querySelectorAll('#memberRegisterForm input').forEach(input => {
+                    input.disabled = false;
+                });
+                verifyEmailBtn.textContent = 'Verify Your Email';
+                validateForm();
+            }
+        }
+
+        // Manual verification
+        async function verifyManualToken() {
+            const token = document.getElementById('manualTokenInput').value;
+
+            if (!token) {
+                showMessage('Please enter the verification code', 'error');
+                return;
+            }
+
+            manualVerifyBtn.textContent = 'Verifying...';
+            manualVerifyBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/verify-member-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showVerificationSuccess();
+                    completeRegistration(result);
+                } else {
+                    showMessage(result.error || 'Invalid verification code', 'error');
+                }
+            } catch (error) {
+                showMessage('Verification failed', 'error');
+            } finally {
+                manualVerifyBtn.textContent = 'Verify Code';
+                manualVerifyBtn.disabled = false;
+            }
+        }
+
+        // Complete registration after verification
+        async function completeRegistration(result) {
+            // Show success message with team info
+            if (result.teamName) {
+                successTeamName.textContent = result.teamName;
+            }
+            
+            verificationSection.style.display = 'none';
+            successMessage.style.display = 'block';
+        }
+
+        function showVerificationSuccess() {
+            verificationSuccess.style.display = 'block';
+            manualVerification.style.display = 'none';
+            completeRegistrationBtn.style.display = 'block';
+            verificationStatus.className = 'verification-status verification-success';
+            verificationStatus.textContent = '✅ Email verified successfully!';
+        }
+
+        // Event Listeners
+        verifyEmailBtn.addEventListener('click', sendVerificationEmail);
+        manualVerifyBtn.addEventListener('click', verifyManualToken);
+
+        completeRegistrationBtn.addEventListener('click', async () => {
+            if (!verificationToken) {
+                showMessage('Please verify your email first', 'error');
+                return;
+            }
+
+            completeRegistrationBtn.classList.add('loading');
+            completeRegistrationBtn.disabled = true;
+            completeRegistrationBtn.textContent = 'Completing Registration...';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/verify-member-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: verificationToken })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    completeRegistration(result);
+                } else {
+                    showMessage(result.error, 'error');
+                    completeRegistrationBtn.classList.remove('loading');
+                    completeRegistrationBtn.disabled = false;
+                    completeRegistrationBtn.textContent = 'Complete Registration';
+                }
+            } catch (error) {
+                showMessage('Registration failed. Please try again.', 'error');
+                completeRegistrationBtn.classList.remove('loading');
+                completeRegistrationBtn.disabled = false;
+                completeRegistrationBtn.textContent = 'Complete Registration';
+            }
+        });
+
+        // Password input event listeners
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            
+            if (password.length === 0) {
+                passwordStrengthDiv.style.display = 'none';
+                passwordInput.classList.remove('error', 'success');
+                // Reset requirement indicators
+                reqLength.className = 'requirement';
+                reqLength.innerHTML = '<span class="requirement-icon">○</span> At least 6 characters';
+                reqSpecial.className = 'requirement';
+                reqSpecial.innerHTML = '<span class="requirement-icon">○</span> At least 1 special character (!@#$%^&* etc.)';
+            } else {
+                const strength = checkPasswordStrength(password);
+                passwordStrengthDiv.textContent = strength.message;
+                passwordStrengthDiv.className = `password-strength ${strength.level}`;
+                
+                if (strength.level === 'weak') {
+                    passwordInput.classList.add('error');
+                    passwordInput.classList.remove('success');
+                } else {
+                    passwordInput.classList.remove('error');
+                    passwordInput.classList.add('success');
+                }
+            }
+            
+            checkPasswordMatch();
+            validateForm();
+        });
+
+        confirmPasswordInput.addEventListener('input', function() {
+            checkPasswordMatch();
+            validateForm();
+        });
+
+        // Add input event listeners to all form fields
+        document.querySelectorAll('#memberRegisterForm input').forEach(input => {
+            input.addEventListener('input', validateForm);
+        });
+
+        // Auto-uppercase team code
+        const teamCodeInput = document.getElementById('memberTeamCode');
+        if (teamCodeInput) {
+            teamCodeInput.addEventListener('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        }
+
+        // Initialize form validation
+        validateForm();
+    </script>
+</body>
+</html>

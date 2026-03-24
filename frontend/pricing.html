@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - WizDesk</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Include the same CSS as above plus pricing specific styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .footer-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 80px 20px 40px;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        .footer-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .footer-header h1 {
+            font-size: 3rem;
+            color: #333;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .footer-header p {
+            font-size: 1.2rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .content-section {
+            margin-bottom: 40px;
+        }
+
+        .content-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .content-section p {
+            color: #555;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .pricing-card.free {
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+
+        .pricing-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.1);
+        }
+
+        .price-badge {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .price-amount {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #333;
+            margin: 20px 0;
+        }
+
+        .price-period {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .features-list {
+            list-style: none;
+            padding: 0;
+            margin: 30px 0;
+        }
+
+        .features-list li {
+            padding: 10px 0;
+            color: #555;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .features-list li:last-child {
+            border-bottom: none;
+        }
+
+        .features-list li::before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .back-home {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .footer-container {
+                padding: 30px 20px;
+            }
+            
+            .footer-header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .pricing-card.free {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="footer-page">
+        <div class="footer-container">
+            <div class="footer-header">
+                <h1>Simple, Transparent Pricing</h1>
+                <p>Get started with WizDesk today. No credit card required.</p>
+            </div>
+
+            <div class="content-section">
+                <h2>Choose Your Plan</h2>
+                <p>We believe powerful task management should be accessible to everyone. That's why we offer our complete feature set for free.</p>
+                
+                <div class="pricing-cards">
+                    <div class="pricing-card free">
+                        <div class="price-badge">MOST POPULAR</div>
+                        <h3>Free Forever</h3>
+                        <div class="price-amount">$0</div>
+                        <div class="price-period">forever</div>
+                        
+                        <ul class="features-list">
+                            <li>Unlimited Tasks & Subtasks</li>
+                            <li>Up to 50 Team Members</li>
+                            <li>Advanced Task Management</li>
+                            <li>Performance Analytics</li>
+                            <li>Real-time Collaboration</li>
+                            <li>Mobile Responsive Design</li>
+                            <li>Email Support</li>
+                            <li>Security & Data Protection</li>
+                        </ul>
+                        
+                        <a href="index.html" class="back-btn" style="display: inline-flex;">
+                            Get Started Free
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h2>Why We're Free</h2>
+                <p>At WizDesk, we're committed to making team collaboration accessible to everyone. We believe that cost shouldn't be a barrier to effective task management and team productivity.</p>
+                
+                <p><strong>Our Promise:</strong> We'll always offer a powerful free version because we believe in empowering teams of all sizes to work smarter and achieve more together.</p>
+            </div>
+
+            <div class="content-section">
+                <h2>Frequently Asked Questions</h2>
+                <p><strong>Is it really free forever?</strong><br>
+                Yes! Our core features will always be free. We're committed to keeping WizDesk accessible.</p>
+                
+                <p><strong>Are there any hidden costs?</strong><br>
+                No hidden costs. What you see is what you get - powerful task management completely free.</p>
+                
+                <p><strong>Can I upgrade later?</strong><br>
+                Currently, we offer all features for free. If we introduce premium features in the future, existing users will have special transition options.</p>
+            </div>
+
+            <div class="back-home">
+                <a href="index.html" class="back-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

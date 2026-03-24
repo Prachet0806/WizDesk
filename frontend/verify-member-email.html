@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email - WizDesk</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .form-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .status-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+
+        .btn-primary {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #e7f3ff;
+            color: #0066cc;
+            border: 1px solid #b3d9ff;
+        }
+
+        .team-info {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .team-info h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .form-card {
+                padding: 30px 25px;
+            }
+            
+            header h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WizDesk</h1>
+        </header>
+
+        <div class="form-card">
+            <div id="loadingState">
+                <div class="status-icon">⏳</div>
+                <h2>Verifying Your Email</h2>
+                <p>Please wait while we verify your email address and complete your registration...</p>
+            </div>
+
+            <div id="successState" style="display: none;">
+                <div class="status-icon success">✅</div>
+                <h2>Registration Successful!</h2>
+                <div class="message success">
+                    <p>Your email has been verified and your registration is complete.</p>
+                </div>
+                
+                <div class="team-info" id="teamInfo">
+                    <h3>Team Information</h3>
+                    <p><strong>Team Name:</strong> <span id="teamName"></span></p>
+                    <p><strong>Your Role:</strong> Team Member</p>
+                    <p><strong>Status:</strong> Pending Leader Approval</p>
+                </div>
+                
+                <p style="color: #666; margin-bottom: 20px;">
+                    Your team leader has been notified and will review your membership request shortly.
+                    You will receive an email once your membership is approved.
+                </p>
+                
+                <button onclick="window.location.href='index.html'" class="btn-primary btn-success">
+                    Go to Login
+                </button>
+            </div>
+
+            <div id="errorState" style="display: none;">
+                <div class="status-icon error">❌</div>
+                <h2>Verification Failed</h2>
+                <div class="message error" id="errorMessage">
+                    <p>We couldn't verify your email address.</p>
+                </div>
+                <button onclick="window.location.href='member-register.html'" class="btn-primary">
+                    Back to Registration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+
+        // Get token from URL
+        function getTokenFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('token');
+        }
+
+        async function verifyToken(token) {
+            try {
+                console.log('🔍 Verifying member token:', token);
+                
+                const response = await fetch(`${API_BASE}/auth/verify-member-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    console.log('✅ Member verification successful:', result);
+                    showSuccessState(result);
+                } else {
+                    console.error('❌ Member verification failed:', result.error);
+                    showErrorState(result.error || 'Verification failed');
+                }
+            } catch (error) {
+                console.error('❌ Network error:', error);
+                showErrorState('Network error. Please check your connection.');
+            }
+        }
+
+        function showSuccessState(result) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('successState').style.display = 'block';
+            
+            // Display team information
+            if (result.teamName) {
+                document.getElementById('teamName').textContent = result.teamName;
+            }
+        }
+
+        function showErrorState(errorMessage) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMessage').innerHTML = `<p>${errorMessage}</p>`;
+        }
+
+        // Auto-verify when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = getTokenFromURL();
+            
+            if (!token) {
+                showErrorState('No verification token found in URL.');
+                return;
+            }
+            
+            // Start verification process
+            verifyToken(token);
+        });
+    </script>
+</body>
+</html>
