@@ -144,9 +144,24 @@ class CheckMemberStatusView(APIView):
 
     def post(self, request):
         email = request.data.get('email')
+        team_code = request.data.get('teamCode')
         try:
             user = User.objects.get(email=email)
-            return Response({'status': user.status, 'role': user.role})
+            
+            # Check if team code matches (if provided)
+            team_match = True
+            if team_code and user.team and user.team.code != team_code:
+                team_match = False
+                
+            can_login = user.status == User.Status.APPROVED and team_match
+            
+            return Response({
+                'status': user.status,
+                'role': user.role,
+                'canLogin': can_login,
+                'teamMatch': team_match,
+                'message': 'Team code mismatch' if not team_match else ''
+            })
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -199,7 +214,7 @@ class TeamAllMembersView(APIView):
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code)
+        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED)
         return Response(UserSerializer(qs, many=True).data)
 
 class TeamApprovedMembersView(APIView):
@@ -255,7 +270,10 @@ class RejectMemberView(APIView):
             member.rejected_by = request.user
             member.rejected_at = timezone.now()
             member.save()
-            return Response({'message': 'Member rejected successfully'})
+            return Response({
+                'message': 'Member rejected successfully',
+                'user': UserSerializer(member).data
+            })
         except User.DoesNotExist:
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
 

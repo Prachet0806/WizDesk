@@ -82,6 +82,17 @@
                     </div>
 
                     <div class="section">
+                        <h2>⚠️ Due Soon</h2>
+                        <div id="dueSoonTasks" class="task-list">
+                            <div class="empty-state">
+                                <div class="icon">⏰</div>
+                                <h3>No pressing deadlines</h3>
+                                <p>You have no tasks due in the next 3 days</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
                         <h2>📋 My Recent Tasks</h2>
                         <div id="recentTasks" class="task-list">
                             <div class="empty-state">
@@ -212,6 +223,14 @@
 
         // Add Authorization header to all fetch requests
         const originalFetch = window.fetch;
+        let isRefreshing = false;
+        let refreshSubscribers = [];
+
+        function onRefreshed(token) {
+            refreshSubscribers.map(cb => cb(token));
+            refreshSubscribers = [];
+        }
+
         window.fetch = async function() {
             let [resource, config] = arguments;
             if(resource && typeof resource === 'string' && resource.startsWith(API_BASE)) {
@@ -222,7 +241,55 @@
                     config.headers['Authorization'] = `Bearer ${token}`;
                 }
             }
-            return originalFetch(resource, config);
+            
+            const response = await originalFetch(resource, config);
+            
+            // Auto Refresh JWT Token Flow
+            if (response.status === 401 && resource !== `${API_BASE}/token/refresh/` && !resource.includes('/auth/login')) {
+                const refreshToken = localStorage.getItem('refresh');
+                if (refreshToken) {
+                    if (!isRefreshing) {
+                        isRefreshing = true;
+                        try {
+                            const refreshRes = await originalFetch(`${API_BASE}/token/refresh/`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ refresh: refreshToken })
+                            });
+                            
+                            if (refreshRes.ok) {
+                                const data = await refreshRes.json();
+                                localStorage.setItem('token', data.access);
+                                isRefreshing = false;
+                                onRefreshed(data.access);
+                                
+                                config.headers['Authorization'] = `Bearer ${data.access}`;
+                                return originalFetch(resource, config);
+                            } else {
+                                localStorage.clear();
+                                window.location.href = 'index.html';
+                                throw new Error('Session expired');
+                            }
+                        } catch (err) {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                            throw err;
+                        }
+                    } else {
+                        // Queue this request while token refreshes
+                        return new Promise(resolve => {
+                            refreshSubscribers.push(token => {
+                                config.headers['Authorization'] = `Bearer ${token}`;
+                                resolve(originalFetch(resource, config));
+                            });
+                        });
+                    }
+                } else {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+            }
+            return response;
         };
         let currentUser = null;
         let refreshInterval = null;
@@ -375,6 +442,7 @@
                 // Calculate available tasks count
                 const availableTasksCount = calculateAvailableTasksCount(teamTasks);
                 updateOverviewStats(myTasks, availableTasksCount);
+                displayDueSoonTasks(myTasks);
                 displayRecentTasks(myTasks);
                 
             } catch (error) {
@@ -412,6 +480,59 @@
             document.getElementById('inProgressCount').textContent = inProgressCount;
             document.getElementById('completedCount').textContent = completedCount;
             document.getElementById('availableTasks').textContent = availableTasksCount;
+        }
+
+        function displayDueSoonTasks(tasks) {
+            const container = document.getElementById('dueSoonTasks');
+            
+            // Filter: deadline <= now + 3 days, status != completed
+            const now = new Date();
+            const threeDaysFromNow = new Date();
+            threeDaysFromNow.setDate(now.getDate() + 3);
+            
+            const dueSoon = tasks.filter(task => {
+                if (!task.deadline || getCorrectProgress(task.progress) === 'completed') return false;
+                const deadline = new Date(task.deadline);
+                return deadline <= threeDaysFromNow && deadline >= now;
+            }).sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+            
+            if (dueSoon.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">⏰</div>
+                        <h3>No pressing deadlines</h3>
+                        <p>You have no tasks due in the next 3 days</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = dueSoon.map(task => {
+                const displayProgress = getCorrectProgress(task.progress);
+                const daysLeft = Math.ceil((new Date(task.deadline) - now) / (1000 * 60 * 60 * 24));
+                
+                return `
+                    <div class="task-card" style="border-left: 4px solid ${daysLeft <= 1 ? '#dc3545' : '#ffc107'}">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">${task.task_title || task.title}</div>
+                                <div class="task-description">${task.title}</div>
+                                <div style="font-size: 0.8rem; color: #dc3545; margin-top: 5px;">
+                                    ⏱️ Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} (${new Date(task.deadline).toLocaleDateString()})
+                                </div>
+                            </div>
+                            <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
+                        </div>
+                        
+                        <div class="task-actions">
+                            ${getActionButton(task.id, displayProgress, task.title, task.status, task.assigned_to)}
+                            <button class="btn btn-sm btn-outline" onclick="viewTaskDetails('${task.id}')">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function displayRecentTasks(tasks) {
@@ -1044,7 +1165,7 @@
             
             // If task is available for taking
             if (isAvailable && !assignedTo) {
-                return `<button class="btn btn-primary btn-sm" onclick="confirmTakeTask(${subtaskId}, '${escapeHtml(taskTitle)}')">Take Task</button>`;
+                return `<button class="btn btn-primary btn-sm" onclick="confirmTakeTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Take Task</button>`;
             }
             
             // If task is assigned to me
@@ -1052,12 +1173,12 @@
                 switch(displayProgress) {
                     case 'not_started':
                     case 'assigned':
-                        return `<button class="btn btn-warning btn-sm" onclick="confirmStartTask(${subtaskId}, '${escapeHtml(taskTitle)}')">Start Task</button>`;
+                        return `<button class="btn btn-warning btn-sm" onclick="confirmStartTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Start Task</button>`;
                     case 'in_progress':
                     case 'testing':
-                        return `<button class="btn btn-success btn-sm" onclick="confirmCompleteTask(${subtaskId}, '${escapeHtml(taskTitle)}')">Complete Task</button>`;
+                        return `<button class="btn btn-success btn-sm" onclick="confirmCompleteTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Complete Task</button>`;
                     default:
-                        return `<button class="btn btn-warning btn-sm" onclick="confirmStartTask(${subtaskId}, '${escapeHtml(taskTitle)}')">Start Task</button>`;
+                        return `<button class="btn btn-warning btn-sm" onclick="confirmStartTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Start Task</button>`;
                 }
             }
             
@@ -1132,7 +1253,7 @@
         async function takeSubtask(subtaskId) {
             try {
                 const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/take`, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: currentUser.id
@@ -1184,7 +1305,7 @@
         async function updateTaskProgress(subtaskId, progress) {
             try {
                 const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/progress`, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         progress: progress,

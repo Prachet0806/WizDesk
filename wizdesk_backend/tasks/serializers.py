@@ -3,26 +3,32 @@ from .models import Task, Subtask
 from users.serializers import UserSerializer
 
 class SubtaskSerializer(serializers.ModelSerializer):
-    assigned_to_details = UserSerializer(source='assigned_to', read_only=True)
+    assigned_to_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Subtask
         fields = [
             'id', 'task', 'title', 'description', 'assigned_to', 
-            'assigned_to_details', 'status', 'progress', 'priority', 
+            'assigned_to_name', 'status', 'progress', 'priority', 
             'deadline', 'created_at', 'updated_at', 'completed_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+    def get_assigned_to_name(self, obj):
+        return obj.assigned_to.name if obj.assigned_to else None
+
 class TaskSerializer(serializers.ModelSerializer):
     subtasks = SubtaskSerializer(many=True, read_only=True)
-    created_by_details = UserSerializer(source='created_by', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = [
             'id', 'title', 'description', 'team', 'created_by',
-            'created_by_details', 'status', 'created_at', 'updated_at',
+            'created_by_name', 'status', 'created_at', 'updated_at',
             'subtasks'
         ]
         read_only_fields = ['id', 'team', 'created_by', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        return obj.created_by.name if obj.created_by else None

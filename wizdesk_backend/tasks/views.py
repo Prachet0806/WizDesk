@@ -1,4 +1,4 @@
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
@@ -47,23 +47,40 @@ class TaskCreateView(APIView):
                     
         return Response(TaskSerializer(task).data, status=status.HTTP_201_CREATED)
 
-class TeamTasksView(APIView):
+class TeamTasksView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
-    def get(self, request, team_code):
-        if request.user.team.code != team_code:
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
-        tasks = Task.objects.filter(team__code=team_code).order_by('-created_at')
-        return Response(TaskSerializer(tasks, many=True).data)
+    serializer_class = TaskSerializer
 
-class TeamTasksStatusView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTeamMember]
-    def get(self, request, team_code, status_val):
+    def get_queryset(self):
+        team_code = self.kwargs['team_code']
+        return Task.objects.filter(team__code=team_code)\
+            .select_related('created_by', 'team')\
+            .prefetch_related('subtasks__assigned_to')\
+            .order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        team_code = self.kwargs['team_code']
         if request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
-        tasks = Task.objects.filter(team__code=team_code, status__iexact=status_val).order_by('-created_at')
-        return Response(TaskSerializer(tasks, many=True).data)
+        return super().list(request, *args, **kwargs)
+
+class TeamTasksStatusView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsTeamMember]
+    serializer_class = TaskSerializer
+
+    def get_queryset(self):
+        team_code = self.kwargs['team_code']
+        status_val = self.kwargs['status_val']
+        return Task.objects.filter(team__code=team_code, status__iexact=status_val)\
+            .select_related('created_by', 'team')\
+            .prefetch_related('subtasks__assigned_to')\
+            .order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        team_code = self.kwargs['team_code']
+        if request.user.team.code != team_code:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        return super().list(request, *args, **kwargs)
 
 class TaskDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
@@ -103,6 +120,8 @@ class TaskDetailView(APIView):
         task.delete()
         return Response({'message': 'Task deleted successfully'})
 
+from rest_framework.settings import api_settings
+
 class UserAssignedSubtasksView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
     def get(self, request, user_id):
@@ -110,15 +129,18 @@ class UserAssignedSubtasksView(APIView):
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         
         subtasks = Subtask.objects.filter(assigned_to_id=user_id).select_related('task').order_by('-created_at')
+        
+        paginator = api_settings.DEFAULT_PAGINATION_CLASS()
+        paginated_subtasks = paginator.paginate_queryset(subtasks, request)
+        
         # Serialize but include task title dynamically
         data = []
-        for s in subtasks:
+        for s in paginated_subtasks:
             s_data = SubtaskSerializer(s).data
             s_data['task_title'] = s.task.title
-            # Make sure id vs task_id matches what frontend expects 
             s_data['task_id'] = s.task.id
             data.append(s_data)
-        return Response(data)
+        return paginator.get_paginated_response(data)
 
 class TakeSubtaskView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]

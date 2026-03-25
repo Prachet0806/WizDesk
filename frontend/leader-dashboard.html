@@ -464,6 +464,14 @@
 
         // Add Authorization header to all fetch requests
         const originalFetch = window.fetch;
+        let isRefreshing = false;
+        let refreshSubscribers = [];
+
+        function onRefreshed(token) {
+            refreshSubscribers.map(cb => cb(token));
+            refreshSubscribers = [];
+        }
+
         window.fetch = async function() {
             let [resource, config] = arguments;
             if(resource && typeof resource === 'string' && resource.startsWith(API_BASE)) {
@@ -474,7 +482,55 @@
                     config.headers['Authorization'] = `Bearer ${token}`;
                 }
             }
-            return originalFetch(resource, config);
+            
+            const response = await originalFetch(resource, config);
+            
+            // Auto Refresh JWT Token Flow
+            if (response.status === 401 && resource !== `${API_BASE}/token/refresh/` && !resource.includes('/auth/login')) {
+                const refreshToken = localStorage.getItem('refresh');
+                if (refreshToken) {
+                    if (!isRefreshing) {
+                        isRefreshing = true;
+                        try {
+                            const refreshRes = await originalFetch(`${API_BASE}/token/refresh/`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ refresh: refreshToken })
+                            });
+                            
+                            if (refreshRes.ok) {
+                                const data = await refreshRes.json();
+                                localStorage.setItem('token', data.access);
+                                isRefreshing = false;
+                                onRefreshed(data.access);
+                                
+                                config.headers['Authorization'] = `Bearer ${data.access}`;
+                                return originalFetch(resource, config);
+                            } else {
+                                localStorage.clear();
+                                window.location.href = 'index.html';
+                                throw new Error('Session expired');
+                            }
+                        } catch (err) {
+                            localStorage.clear();
+                            window.location.href = 'index.html';
+                            throw err;
+                        }
+                    } else {
+                        // Queue this request while token refreshes
+                        return new Promise(resolve => {
+                            refreshSubscribers.push(token => {
+                                config.headers['Authorization'] = `Bearer ${token}`;
+                                resolve(originalFetch(resource, config));
+                            });
+                        });
+                    }
+                } else {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+            }
+            return response;
         };
         let currentUser = null;
         let teamMembers = [];
@@ -716,7 +772,8 @@ function showLogoutConfirmation() {
             try {
                 const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
                 if (response.ok) {
-                    allTasks = await response.json();
+                    let data = await response.json();
+                    allTasks = data.results || data;
                     displayRecentTasks();
                 } else {
                     console.error('Failed to load tasks');
@@ -1057,7 +1114,7 @@ function showLogoutConfirmation() {
                     <div class="member-email">${member.email}</div>
                     <div class="status-badge status-rejected">REJECTED</div>
                     <div class="request-meta" style="margin: 10px 0; color: #888;">
-                        Rejected on ${new Date(member.updated_at || member.created_at).toLocaleDateString()}
+                        Rejected on ${member.rejected_at ? new Date(member.rejected_at).toLocaleDateString() : 'Recently'}
                     </div>
                     <div class="member-actions">
                         <button class="btn btn-info btn-sm" onclick="approveRejectedMember('${member.id}')">
@@ -1153,7 +1210,8 @@ function showLogoutConfirmation() {
             try {
                 const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
                 if (response.ok) {
-                    const tasks = await response.json();
+                    let data = await response.json();
+                    const tasks = data.results || data;
                     displayTasksForManagement(tasks);
                 } else {
                     console.error('Failed to load tasks for management');
@@ -1342,7 +1400,8 @@ function showLogoutConfirmation() {
             try {
                 const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/status/${status}`);
                 if (response.ok) {
-                    const tasks = await response.json();
+                    let data = await response.json();
+                    const tasks = data.results || data;
                     
                     if (status === 'active') {
                         displayActiveTasks(tasks);
@@ -1514,7 +1573,7 @@ function showLogoutConfirmation() {
                     </div>
                     ${(member.role === 'member' || member.role === 'MEMBER') ? `
                         <div class="member-actions">
-                            <button class="btn btn-sm btn-danger" onclick="deleteMember(${member.id}, '${member.name}')">
+                            <button class="btn btn-sm btn-danger" onclick="deleteMember('${member.id}', '${member.name}')">
                                 Remove
                             </button>
                         </div>
@@ -2037,7 +2096,8 @@ function showLogoutConfirmation() {
                 const tasksResponse = await fetch(`${API_BASE}/tasks/user/${memberId}/subtasks`);
                 let completedTasks = [];
                 if (tasksResponse.ok) {
-                    const allTasks = await tasksResponse.json();
+                    let data = await tasksResponse.json();
+                    const allTasks = data.results || data;
                     completedTasks = allTasks.filter(task => task.progress === 'completed');
                 }
 
