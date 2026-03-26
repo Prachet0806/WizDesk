@@ -74,9 +74,15 @@ class VerifyLeaderEmailView(APIView):
             team = Team.objects.create(code=team_code, name=user.team_name, leader=user)
             user.team = team
             user.save()
-            return Response({'message': 'Leader registered successfully', 'team_code': team_code}, status=status.HTTP_200_OK)
-        except Exception:
-            return Response({'error': 'Invalid verification token'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'message': 'Leader registered successfully', 
+                'teamCode': team_code,
+                'emailSent': True,
+                'emailMethod': 'manual',
+                'user': UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SendMemberVerificationView(APIView):
