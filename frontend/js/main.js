@@ -1,6 +1,6 @@
 // Global constants
-const API_BASE = 'http://localhost:8000/api';
-const SOCKET_URL = 'http://localhost:8000';
+const API_BASE = '/api';
+const SOCKET_URL = window.location.origin;
 
 // Common utility functions
 const showMessage = (message, type = 'success') => {

@@ -219,7 +219,7 @@
 
     <script>
         // ===== CONFIGURATION =====
-        const API_BASE = 'http://localhost:8000/api';
+        const API_BASE = '/api';
 
         // Add Authorization header to all fetch requests
         const originalFetch = window.fetch;
@@ -436,8 +436,11 @@
                     throw new Error('Failed to fetch data');
                 }
 
-                const myTasks = await myTasksResponse.json();
-                const teamTasks = await teamTasksResponse.json();
+                const myTasksData = await myTasksResponse.json();
+                const teamTasksData = await teamTasksResponse.json();
+                
+                const myTasks = myTasksData.results || myTasksData;
+                const teamTasks = teamTasksData.results || teamTasksData;
 
                 // Calculate available tasks count
                 const availableTasksCount = calculateAvailableTasksCount(teamTasks);
@@ -584,7 +587,8 @@
                     throw new Error('Failed to fetch tasks');
                 }
 
-                const tasks = await response.json();
+                const data = await response.json();
+                const tasks = data.results || data;
                 displayNewTasks(tasks);
             } catch (error) {
                 console.error('Error loading new tasks:', error);
@@ -725,7 +729,8 @@
                     throw new Error('Failed to fetch assigned tasks');
                 }
 
-                const tasks = await response.json();
+                const data = await response.json();
+                const tasks = data.results || data;
                 displayAssignedTasks(tasks);
             } catch (error) {
                 console.error('Error loading assigned tasks:', error);
@@ -819,7 +824,8 @@
                     throw new Error('Failed to fetch tasks');
                 }
 
-                let tasks = await response.json();
+                let data = await response.json();
+                let tasks = data.results || data;
                 
                 // Filter for active tasks (in_progress or testing)
                 const activeTasks = tasks.filter(task => 
@@ -914,7 +920,8 @@
                     throw new Error('Failed to fetch tasks');
                 }
 
-                let tasks = await response.json();
+                let data = await response.json();
+                let tasks = data.results || data;
                 const completedTasks = tasks.filter(task => getCorrectProgress(task.progress) === 'completed');
 
                 displayCompletedTasks(completedTasks);
@@ -997,7 +1004,8 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                const tasks = await response.json();
+                const data = await response.json();
+                const tasks = data.results || data;
                 console.log('Team tasks response:', tasks);
                 
                 displayTeamTasks(tasks);
@@ -1341,7 +1349,8 @@
                 } catch (error) {
                     // If subtask endpoint fails, get it from user's subtasks
                     const userTasksResponse = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
-                    const userTasks = await userTasksResponse.json();
+                    const userTasksData = await userTasksResponse.json();
+                    const userTasks = userTasksData.results || userTasksData;
                     subtask = userTasks.find(task => task.id == subtaskId);
                     
                     if (!subtask) {
