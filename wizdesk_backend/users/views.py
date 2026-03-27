@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
+from django.db.models import Count, Q
 from .models import User, Team
 from .serializers import UserSerializer
 
@@ -178,9 +179,15 @@ class LoginView(APIView):
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
+        team_code = request.data.get('teamCode')
+        
         user = authenticate(username=email, password=password)
-
+        
         if user:
+            # Verify team code if provided
+            if team_code and user.team and user.team.code != team_code:
+                return Response({'error': 'Invalid team code for this account.'}, status=status.HTTP_401_UNAUTHORIZED)
+
             if user.role == User.Role.MEMBER and user.status == User.Status.PENDING:
                 return Response({'error': 'Your request is pending leader approval.'}, status=status.HTTP_403_FORBIDDEN)
             if user.role == User.Role.MEMBER and user.status == User.Status.REJECTED:
@@ -220,7 +227,10 @@ class TeamAllMembersView(APIView):
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED)
+        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED).annotate(
+            assigned_tasks=Count('assigned_subtasks'),
+            completed_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed'))
+        )
         return Response(UserSerializer(qs, many=True).data)
 
 class TeamApprovedMembersView(APIView):
@@ -228,7 +238,10 @@ class TeamApprovedMembersView(APIView):
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED, role=User.Role.MEMBER)
+        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED, role=User.Role.MEMBER).annotate(
+            assigned_tasks=Count('assigned_subtasks'),
+            completed_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed'))
+        )
         return Response(UserSerializer(qs, many=True).data)
 
 class TeamPendingRequestsView(APIView):

@@ -16,20 +16,26 @@ class TeamPerformanceView(APIView):
         if request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         
-        team_members = User.objects.filter(team__code=team_code, role=User.Role.MEMBER, status=User.Status.APPROVED)
+        team_members = User.objects.filter(
+            team__code=team_code, 
+            role=User.Role.MEMBER, 
+            status=User.Status.APPROVED
+        ).annotate(
+            assigned_count=Count('assigned_subtasks'),
+            completed_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed')),
+            # Active defined as assigned but not completed
+            active_count=Count('assigned_subtasks', filter=~Q(assigned_subtasks__status='completed'))
+        )
         
         member_stats = []
         for member in team_members:
-            assigned = Subtask.objects.filter(assigned_to=member)
-            m_completed = assigned.filter(status=Subtask.Status.COMPLETED).count()
-            m_active = assigned.exclude(status=Subtask.Status.COMPLETED).count()
             member_stats.append({
                 'id': str(member.id),
                 'name': member.name,
                 'email': member.email,
-                'completed_tasks': m_completed,
-                'active_tasks': m_active,
-                'assigned_tasks': assigned.count()
+                'completed_tasks': member.completed_count,
+                'active_tasks': member.active_count,
+                'assigned_tasks': member.assigned_count
             })
             
         return Response(member_stats)

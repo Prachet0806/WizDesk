@@ -9,13 +9,16 @@ class TeamSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     team = TeamSerializer(read_only=True)
+    assigned_tasks = serializers.IntegerField(read_only=True, default=0)
+    completed_tasks = serializers.IntegerField(read_only=True, default=0)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'status', 'team',
             'team_name', 'email_verified', 'approved_by', 
-            'approved_at', 'rejected_by', 'rejected_at'
+            'approved_at', 'rejected_by', 'rejected_at',
+            'assigned_tasks', 'completed_tasks'
         ]
         read_only_fields = [
             'id', 'status', 'email_verified', 'approved_by',
