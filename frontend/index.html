@@ -731,6 +731,7 @@
                         <i class="fas fa-sign-in-alt"></i> Login as Leader
                     </button>
                 </form>
+                <div id="leaderStatusMessage" style="display: none;"></div>
                 <p class="register-link">New leader? <a href="register-leader.html">Create an account</a></p>
             </div>
 
@@ -879,17 +880,35 @@
             setTimeout(() => messageDiv.remove(), 4000);
         };
 
-        const showMemberStatusMessage = (message, type = 'info') => {
-            const statusDiv = document.getElementById('memberStatusMessage');
-            statusDiv.innerHTML = `<div class="status-message status-${type}"><i class="fas fa-${type === 'pending' ? 'clock' : 'times-circle'}"></i> ${message}</div>`;
+        const showStatusMessage = (containerId, message, type = 'info') => {
+            const statusDiv = document.getElementById(containerId);
+            if (!statusDiv) return;
+            
+            const iconMap = {
+                'pending': 'clock',
+                'rejected': 'times-circle',
+                'error': 'exclamation-circle',
+                'info': 'info-circle'
+            };
+            const icon = iconMap[type] || 'info-circle';
+            
+            statusDiv.innerHTML = `<div class="status-message status-${type}"><i class="fas fa-${icon}"></i> ${message}</div>`;
             statusDiv.style.display = 'block';
         };
 
-        const hideMemberStatusMessage = () => {
-            const statusDiv = document.getElementById('memberStatusMessage');
-            statusDiv.style.display = 'none';
-            statusDiv.innerHTML = '';
+        const showMemberStatusMessage = (message, type = 'info') => showStatusMessage('memberStatusMessage', message, type);
+        const showLeaderStatusMessage = (message, type = 'info') => showStatusMessage('leaderStatusMessage', message, type);
+
+        const hideStatusMessage = (containerId) => {
+            const statusDiv = document.getElementById(containerId);
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+                statusDiv.innerHTML = '';
+            }
         };
+
+        const hideMemberStatusMessage = () => hideStatusMessage('memberStatusMessage');
+        const hideLeaderStatusMessage = () => hideStatusMessage('leaderStatusMessage');
 
         function togglePassword(inputId, button) {
             const input = document.getElementById(inputId);
@@ -946,6 +965,9 @@
                 const submitButton = leaderLoginForm.querySelector('button[type="submit"]');
                 setButtonLoading(submitButton, true);
 
+                // Hide any previous status messages
+                hideLeaderStatusMessage();
+
                 try {
                     const response = await fetch(`${API_BASE}/auth/login/`, {
                         method: 'POST',
@@ -958,7 +980,7 @@
                     if (response.ok) {
                         // Check if user is actually a leader
                         if (result.user.role !== 'LEADER' && result.user.role !== 'leader') {
-                            showMessage('Access denied. This account is not a team leader.', 'error');
+                            showLeaderStatusMessage('Access denied. This account is not a team leader.', 'error');
                             setButtonLoading(submitButton, false);
                             return;
                         }
@@ -970,7 +992,7 @@
                             window.location.href = 'leader-dashboard.html';
                         }, 1000);
                     } else {
-                        showMessage(result.error, 'error');
+                        showLeaderStatusMessage(result.error || 'Login failed', 'error');
                         setButtonLoading(submitButton, false);
                     }
                 } catch (error) {
