@@ -2,6 +2,7 @@ from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
+from django.db.models import F, Count, Q
 from .models import Task, Subtask
 from .serializers import TaskSerializer, SubtaskSerializer
 from users.models import Team, User
@@ -70,11 +71,31 @@ class TeamTasksStatusView(generics.ListAPIView):
 
     def get_queryset(self):
         team_code = self.kwargs['team_code']
-        status_val = self.kwargs['status_val']
-        return Task.objects.filter(team__code=team_code, status__iexact=status_val)\
+        status_val = self.kwargs['status_val'].lower()
+        
+        queryset = Task.objects.filter(team__code=team_code)\
             .select_related('created_by', 'team')\
             .prefetch_related('subtasks__assigned_to')\
             .order_by('-created_at')
+            
+        if status_val == 'active':
+            # Active tasks: status is ACTIVE and at least one subtask is not completed
+            return queryset.filter(
+                status=Task.Status.ACTIVE
+            ).filter(
+                subtasks__status__in=['available', 'assigned', 'taken']
+            ).distinct()
+        elif status_val == 'completed':
+            # Completed tasks: status is COMPLETED OR all subtasks are completed
+            return queryset.annotate(
+                total_st=Count('subtasks'),
+                completed_st=Count('subtasks', filter=Q(subtasks__status='completed'))
+            ).filter(
+                Q(status=Task.Status.COMPLETED) | 
+                Q(total_st__gt=0, total_st=F('completed_st'))
+            ).distinct()
+            
+        return queryset.filter(status__iexact=status_val)
 
     def list(self, request, *args, **kwargs):
         team_code = self.kwargs['team_code']
@@ -133,11 +154,12 @@ class UserAssignedSubtasksView(APIView):
         paginator = api_settings.DEFAULT_PAGINATION_CLASS()
         paginated_subtasks = paginator.paginate_queryset(subtasks, request)
         
-        # Serialize but include task title dynamically
+        # Serialize but include task title and description dynamically
         data = []
         for s in paginated_subtasks:
             s_data = SubtaskSerializer(s).data
             s_data['task_title'] = s.task.title
+            s_data['task_description'] = s.task.description
             s_data['task_id'] = s.task.id
             data.append(s_data)
         return paginator.get_paginated_response(data)
@@ -169,6 +191,12 @@ class UpdateSubtaskProgressView(APIView):
                 if new_progress == Subtask.Progress.COMPLETED:
                     subtask.status = Subtask.Status.COMPLETED
                     subtask.completed_at = timezone.now()
+                    
+                    # Sync parent task status: if all subtasks completed, mark task as completed
+                    parent_task = subtask.task
+                    if not parent_task.subtasks.exclude(status=Subtask.Status.COMPLETED).exists():
+                        parent_task.status = Task.Status.COMPLETED
+                        parent_task.save()
             subtask.save()
             return Response({'message': 'Progress updated successfully', 'subtask': SubtaskSerializer(subtask).data})
         except Subtask.DoesNotExist:

@@ -560,6 +560,18 @@
             // Initialize dashboard after authentication passes
             initializeDashboard();
             loadTeamData();
+            
+            // 🔄 AUTO REFRESH (10 seconds)
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    console.log('Auto-refreshing team data...');
+                    loadTeamData();
+                    // If on performance tab, refresh it too
+                    if (document.getElementById('performance').style.display !== 'none') {
+                        loadPerformanceData();
+                    }
+                }
+            }, 10000);
         });
 
         // Utility functions
@@ -1619,7 +1631,7 @@ function showLogoutConfirmation() {
             const checklist = document.getElementById('membersChecklist');
             checklist.innerHTML = teamMembers.map(member => `
                 <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #f0f0f0;">
-                    <input type="checkbox" id="member-${member.id}" value="${member.id}" class="member-checkbox" onchange="toggleMemberSelection(${member.id}, this.checked)">
+                    <input type="checkbox" id="member-${member.id}" value="${member.id}" class="member-checkbox" onchange="toggleMemberSelection('${member.id}', this.checked)">
                     <label for="member-${member.id}" style="flex: 1; cursor: pointer;">
                         <div style="font-weight: 500;">${member.name}</div>
                         <div style="font-size: 0.9rem; color: #666;">${member.email}</div>
