@@ -1391,7 +1391,7 @@ function showLogoutConfirmation() {
                 showMessage('Task updated successfully!', 'success');
                 closeModal('editTaskModal');
                 // Update tasks immediately
-                allTasks = allTasks.map(task => task.id === parseInt(taskId) ? { ...task, title, description } : task);
+                allTasks = allTasks.map(task => task.id === taskId ? { ...task, title, description } : task);
                 updateTaskDisplays();
             } catch (error) {
                 console.error('Error updating task:', error);

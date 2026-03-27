@@ -13,7 +13,7 @@ class TeamPerformanceView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
 
     def get(self, request, team_code):
-        if request.user.team.code != team_code:
+        if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         
         team_members = User.objects.filter(
