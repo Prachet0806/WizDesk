@@ -632,7 +632,7 @@
             verifyEmailBtn.disabled = true;
 
             try {
-                const response = await fetch(`${API_BASE}/auth/send-member-verification`, {
+                const response = await fetch(`${API_BASE}/auth/send-member-verification/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password, teamCode })
@@ -696,7 +696,7 @@
             manualVerifyBtn.disabled = true;
 
             try {
-                const response = await fetch(`${API_BASE}/auth/verify-member-email`, {
+                const response = await fetch(`${API_BASE}/auth/verify-member-email/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token })
@@ -752,7 +752,7 @@
             completeRegistrationBtn.textContent = 'Completing Registration...';
 
             try {
-                const response = await fetch(`${API_BASE}/auth/verify-member-email`, {
+                const response = await fetch(`${API_BASE}/auth/verify-member-email/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: verificationToken })

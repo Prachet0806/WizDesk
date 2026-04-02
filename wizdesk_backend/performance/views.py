@@ -15,27 +15,37 @@ class TeamPerformanceView(APIView):
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         team_members = User.objects.filter(
-            team__code=team_code, 
-            role=User.Role.MEMBER, 
+            team__code=team_code,
+            role=User.Role.MEMBER,
             status=User.Status.APPROVED
         ).annotate(
             assigned_count=Count('assigned_subtasks'),
             completed_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed')),
-            # Active defined as assigned but not completed
-            active_count=Count('assigned_subtasks', filter=~Q(assigned_subtasks__status='completed'))
+            in_progress_count=Count(
+                'assigned_subtasks',
+                filter=Q(assigned_subtasks__progress__in=['in_progress', 'testing'])
+            ),
         )
-        
+
         member_stats = []
         for member in team_members:
+            assigned = member.assigned_count
+            completed = member.completed_count
+            in_progress = member.in_progress_count
+            completion_rate = round((completed / assigned) * 100) if assigned > 0 else 0
+
             member_stats.append({
                 'id': str(member.id),
                 'name': member.name,
                 'email': member.email,
-                'completed_tasks': member.completed_count,
-                'active_tasks': member.active_count,
-                'assigned_tasks': member.assigned_count
+                'total_tasks': assigned,
+                'assigned_tasks': assigned,
+                'completed_tasks': completed,
+                'in_progress_tasks': in_progress,
+                'active_tasks': assigned - completed,
+                'completion_rate': completion_rate,
             })
-            
+
         return Response(member_stats)

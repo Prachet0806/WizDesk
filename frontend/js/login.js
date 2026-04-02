@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 teamCode: inputs[3].value,     // also send camelCase for safety
             };
             try {
-                const response = await fetch(`${API_BASE}/auth/register-member/`, {
+                const response = await fetch(`${API_BASE}/auth/send-member-verification/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

@@ -22,6 +22,21 @@ async function apiFetch(url, options = {}) {
         window.location.href = 'index.html';
         return null;
     }
+
+    // Helper to parse JSON safely to avoid "unexpected token" errors
+    response.jsonSafe = async function() {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            try {
+                return await response.json();
+            } catch (e) {
+                return { error: 'Failed to parse server response' };
+            }
+        }
+        const text = await response.text();
+        return { error: text || `Server returned ${response.status}` };
+    };
+
     return response;
 }
 
@@ -121,10 +136,10 @@ async function createTask(e) {
     // POST /api/tasks/ — custom create handles nested subtasks
     const response = await apiFetch(`${API_BASE}/tasks/`, {
         method: 'POST',
-        body: JSON.stringify({ title, description, subtasks })
+        body: JSON.stringify({ title, description, subtasks, teamCode: currentUser.team_code })
     });
     if (!response) return;
-    const result = await response.json();
+    const result = await response.jsonSafe();
 
     if (response.ok) {
         showMessage('Task created successfully!');
@@ -146,7 +161,7 @@ async function loadTasks() {
     // GET /api/tasks/ — filtered server-side to the user's team
     const response = await apiFetch(`${API_BASE}/tasks/`);
     if (!response) return;
-    const tasks = await response.json();
+    const tasks = await response.jsonSafe();
     if (response.ok) {
         allTasks = Array.isArray(tasks) ? tasks : (tasks.results || []);
         displayTasks(allTasks);
@@ -202,10 +217,10 @@ function updateStats(tasks) {
 
 // ─── User subtasks (Member view) ─────────────────────────────────────────────
 async function loadUserSubtasks() {
-    // GET /api/subtasks/?mine=true
-    const response = await apiFetch(`${API_BASE}/subtasks/?mine=true`);
+    // GET /api/tasks/user/<id>/subtasks/
+    const response = await apiFetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
     if (!response) return;
-    const subtasks = await response.json();
+    const subtasks = await response.jsonSafe();
     if (response.ok) {
         displayUserSubtasks(Array.isArray(subtasks) ? subtasks : (subtasks.results || []));
     }
@@ -227,10 +242,7 @@ function displayUserSubtasks(subtasks) {
             <p>${st.description || 'No description'}</p>
             <div class="subtask-actions">
                 <select onchange="updateSubtaskProgress('${st.id}', this.value)" class="progress-select">
-                    <option value="not_started" ${st.progress==='not_started'?'selected':''}>Not Started</option>
-                    <option value="in_progress" ${st.progress==='in_progress'?'selected':''}>In Progress</option>
-                    <option value="testing" ${st.progress==='testing'?'selected':''}>Testing</option>
-                    <option value="completed" ${st.progress==='completed'?'selected':''}>Completed</option>
+                    ${renderProgressOptions(st.progress)}
                 </select>
             </div>
         </div>
@@ -238,8 +250,8 @@ function displayUserSubtasks(subtasks) {
 }
 
 async function updateSubtaskProgress(subtaskId, progress) {
-    // POST /api/subtasks/<id>/update_progress/
-    const response = await apiFetch(`${API_BASE}/subtasks/${subtaskId}/update_progress/`, {
+    // POST /api/tasks/subtask/<id>/progress/
+    const response = await apiFetch(`${API_BASE}/tasks/subtask/${subtaskId}/progress/`, {
         method: 'POST',
         body: JSON.stringify({ progress })
     });
@@ -295,10 +307,10 @@ function showTaskDetails(taskId) {
 }
 
 async function takeSubtask(subtaskId) {
-    // POST /api/subtasks/<id>/take/
-    const response = await apiFetch(`${API_BASE}/subtasks/${subtaskId}/take/`, { method: 'POST' });
+    // POST /api/tasks/subtask/<id>/take/
+    const response = await apiFetch(`${API_BASE}/tasks/subtask/${subtaskId}/take/`, { method: 'POST' });
     if (!response) return;
-    const result = await response.json();
+    const result = await response.jsonSafe();
     if (response.ok) {
         showMessage('Task assigned to you!');
         const modal = document.getElementById('taskDetailsModal');
@@ -314,7 +326,7 @@ async function takeSubtask(subtaskId) {
 async function loadAllTasksForManagement() {
     const response = await apiFetch(`${API_BASE}/tasks/`);
     if (!response) return;
-    const data = await response.json();
+    const data = await response.jsonSafe();
     displayTasksForManagement(Array.isArray(data) ? data : (data.results || []));
 }
 
@@ -352,7 +364,7 @@ function displayTasksForManagement(tasks) {
 async function manageTask(taskId) {
     const response = await apiFetch(`${API_BASE}/tasks/${taskId}/`);
     if (!response) return;
-    const task = await response.json();
+    const task = await response.jsonSafe();
     const content = document.getElementById('manageTaskContent');
     if (!content) return;
     content.innerHTML = `
@@ -385,29 +397,29 @@ async function deleteTask(taskId) {
         loadTasks();
         loadAllTasksForManagement();
     } else {
-        const r = await response.json();
-        showMessage(r.error || 'Failed to delete task', 'error');
+        const r = await response.jsonSafe();
+                showMessage(r.error || 'Failed to delete task', 'error');
     }
 }
 
 async function deleteSubtask(subtaskId) {
     if (!confirm('Delete this subtask?')) return;
-    const response = await apiFetch(`${API_BASE}/subtasks/${subtaskId}/`, { method: 'DELETE' });
+    const response = await apiFetch(`${API_BASE}/tasks/subtask/${subtaskId}/`, { method: 'DELETE' });
     if (!response) return;
     if (response.status === 204 || response.ok) {
         showMessage('Subtask deleted!', 'success');
         closeModal('manageTaskModal');
         loadTasks();
     } else {
-        const r = await response.json();
-        showMessage(r.error || 'Failed to delete subtask', 'error');
+        const r = await response.jsonSafe();
+                showMessage(r.error || 'Failed to delete subtask', 'error');
     }
 }
 
 // ─── Member Management (Leader) ───────────────────────────────────────────────
 async function loadAllTeamMembers() {
-    // GET /api/auth/team/members/
-    const response = await apiFetch(`${API_BASE}/auth/team/members/`);
+    // GET /api/auth/team/<code>/members/
+    const response = await apiFetch(`${API_BASE}/auth/team/${currentUser.team_code}/members/`);
     if (!response) return;
     const data = await response.json();
     displayAllTeamMembers(Array.isArray(data) ? data : (data.results || []));
@@ -436,21 +448,21 @@ function displayAllTeamMembers(members) {
 
 async function deleteMember(memberId, memberName) {
     if (!confirm(`Remove ${memberName} from the team?`)) return;
-    // DELETE /api/auth/team/member/<id>/
-    const response = await apiFetch(`${API_BASE}/auth/team/member/${memberId}/`, { method: 'DELETE' });
+    // DELETE /api/auth/team/<code>/member/<id>/
+    const response = await apiFetch(`${API_BASE}/auth/team/${currentUser.team_code}/member/${memberId}/`, { method: 'DELETE' });
     if (!response) return;
     if (response.ok) {
         showMessage('Member removed!', 'success');
         loadAllTeamMembers();
     } else {
-        const r = await response.json();
-        showMessage(r.error || 'Failed to remove member', 'error');
+        const r = await response.jsonSafe();
+                showMessage(r.error || 'Failed to remove member', 'error');
     }
 }
 
 // ─── Task filtering (by status tab) ──────────────────────────────────────────
 async function loadTasksByStatus(statusFilter) {
-    const response = await apiFetch(`${API_BASE}/tasks/?status=${statusFilter}`);
+    const response = await apiFetch(`${API_BASE}/tasks/team/${currentUser.team_code}/status/${statusFilter}/`);
     if (!response) return;
     const data = await response.json();
     const tasks = Array.isArray(data) ? data : (data.results || []);
@@ -512,4 +524,29 @@ function showModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
+}
+
+// ─── Progress Helpers ─────────────────────────────────────────────────────────
+function renderProgressOptions(current) {
+    const labels = {
+        'not_started': 'Not Started',
+        'assigned':    'Assigned',
+        'in_progress': 'In Progress',
+        'testing':     'Testing',
+        'completed':   'Completed'
+    };
+    const transitions = {
+        'not_started': ['in_progress'],
+        'assigned':    ['in_progress'],
+        'in_progress': ['testing', 'completed'],
+        'testing':     ['in_progress', 'completed'],
+        'completed':   []
+    };
+
+    let html = `<option value="${current}" selected disabled>${labels[current] || current}</option>`;
+    const nextStates = transitions[current] || [];
+    nextStates.forEach(state => {
+        html += `<option value="${state}">${labels[state] || state}</option>`;
+    });
+    return html;
 }

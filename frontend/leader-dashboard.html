@@ -312,7 +312,7 @@
                         </div>
                     </div>
 
-                    <!-- Subtasks Section - UPDATED with description field -->
+                    <!-- Subtasks Section -->
                     <div class="subtasks-section">
                         <div class="form-group">
                             <label class="form-label">Subtasks *</label>
@@ -320,9 +320,17 @@
                                 <div class="subtask-item">
                                     <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
                                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                                    <select class="form-select assignee-select" style="display: none;">
-                                        <option value="">Select member...</option>
-                                    </select>
+                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+                                        <select class="form-select subtask-priority" style="flex:1;min-width:120px;">
+                                            <option value="medium">Priority: Medium</option>
+                                            <option value="low">Priority: Low</option>
+                                            <option value="high">Priority: High</option>
+                                        </select>
+                                        <input type="date" class="form-input subtask-deadline" style="flex:1;min-width:150px;" title="Deadline (optional)">
+                                        <select class="form-select assignee-select" style="flex:2;min-width:160px;display:none;">
+                                            <option value="">Select member...</option>
+                                        </select>
+                                    </div>
                                     <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                                 </div>
                             </div>
@@ -539,9 +547,10 @@
         let rejectedMembers = [];
         let memberPerformanceData = [];
         let selectedMembers = [];
+        let isRefreshingData = false; // #13: Guard to prevent concurrent refresh floods
 
         // 🔐 AUTHENTICATION CHECK
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const userData = localStorage.getItem('user');
             if (!userData) {
                 window.location.href = 'index.html';
@@ -549,26 +558,41 @@
             }
 
             currentUser = JSON.parse(userData);
-            
+
             // For leader dashboard - check if user is actually a leader
             if (window.location.pathname.includes('/leader-dashboard') && currentUser.role !== 'leader' && currentUser.role !== 'LEADER') {
                 localStorage.removeItem('user');
                 window.location.href = 'index.html';
                 return;
             }
-            
+
+            // #14: Re-sync user data from server to avoid stale localStorage
+            try {
+                const meRes = await fetch(`${API_BASE}/auth/me/`);
+                if (meRes.ok) {
+                    const freshUser = await meRes.json();
+                    // Preserve team_code which may be injected server-side
+                    if (!freshUser.team_code && currentUser.team_code) {
+                        freshUser.team_code = currentUser.team_code;
+                    }
+                    if (freshUser.team && freshUser.team.code) {
+                        freshUser.team_code = freshUser.team.code;
+                    }
+                    currentUser = freshUser;
+                    localStorage.setItem('user', JSON.stringify(freshUser));
+                }
+            } catch(e) { /* proceed with cached user if server unavailable */ }
+
             // Initialize dashboard after authentication passes
             initializeDashboard();
             loadTeamData();
-            
-            // 🔄 AUTO REFRESH (10 seconds)
-            setInterval(() => {
-                if (document.visibilityState === 'visible') {
-                    console.log('Auto-refreshing team data...');
-                    loadTeamData();
-                    // If on performance tab, refresh it too
+
+            // #13: Single consolidated 10-second auto-refresh with guard flag
+            setInterval(async () => {
+                if (document.visibilityState === 'visible' && !isRefreshingData) {
+                    await loadTeamData();
                     if (document.getElementById('performance').style.display !== 'none') {
-                        loadPerformanceData();
+                        await loadPerformanceData();
                     }
                 }
             }, 10000);
@@ -705,30 +729,32 @@ function showLogoutConfirmation() {
         }
 
         async function loadTeamData() {
+            if (isRefreshingData) return; // #13: prevent flooding
+            isRefreshingData = true;
             try {
                 // Load team members (only approved)
                 const membersResponse = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/all-members`);
                 if (membersResponse.ok) {
                     teamMembers = await membersResponse.json();
                 } else {
-                    console.error('Failed to load team members');
                     teamMembers = [];
                 }
-                
+
                 // Load pending requests
                 await loadPendingRequests();
-                
+
                 // Load rejected members
                 await loadRejectedMembers();
-                
+
                 // Load tasks
                 await loadTasks();
-                
+
                 updateDashboardStats();
-                
+
             } catch (error) {
-                console.error('Error loading team data:', error);
                 showMessage('Failed to load team data', 'error');
+            } finally {
+                isRefreshingData = false; // always release, even on error
             }
         }
 
@@ -1312,21 +1338,29 @@ function showLogoutConfirmation() {
                     <div class="edit-subtask-item" data-subtask-id="${subtask.id}">
                         <input type="text" class="edit-subtask-input" value="${subtask.title}" placeholder="Subtask title" required>
                         <textarea class="edit-subtask-desc" placeholder="Subtask description">${subtask.description || ''}</textarea>
-                        <select class="form-select assignee-select">
-                            <option value="">Not assigned</option>
-                            ${teamMembers.map(member => 
-                                `<option value="${member.id}" ${subtask.assigned_to === member.id ? 'selected' : ''}>
-                                    ${member.name} - ${member.email}
-                                </option>`
-                            ).join('')}
-                        </select>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+                            <select class="form-select subtask-priority" style="flex:1;min-width:120px;">
+                                <option value="medium" ${(subtask.priority||'medium')==='medium' ? 'selected' : ''}>Priority: Medium</option>
+                                <option value="low" ${subtask.priority==='low' ? 'selected' : ''}>Priority: Low</option>
+                                <option value="high" ${subtask.priority==='high' ? 'selected' : ''}>Priority: High</option>
+                            </select>
+                            <input type="date" class="form-input subtask-deadline" style="flex:1;min-width:150px;"
+                                value="${subtask.deadline ? subtask.deadline.split('T')[0] : ''}" title="Deadline (optional)">
+                            <select class="form-select assignee-select" style="flex:2;min-width:160px;">
+                                <option value="">Not assigned</option>
+                                ${teamMembers.map(member =>
+                                    `<option value="${member.id}" ${subtask.assigned_to === member.id ? 'selected' : ''}>
+                                        ${member.name} - ${member.email}
+                                    </option>`
+                                ).join('')}
+                            </select>
+                        </div>
                         <button type="button" class="remove-subtask" onclick="removeEditSubtask(this)">Remove</button>
                     </div>
                 `).join('');
-                
+
                 showModal('editTaskModal');
             } catch (error) {
-                console.error('Error loading task for editing:', error);
                 showMessage('Failed to load task details', 'error');
             }
         }
@@ -1336,19 +1370,23 @@ function showLogoutConfirmation() {
             const title = document.getElementById('editTaskTitle').value;
             const description = document.getElementById('editTaskDescription').value;
             
-            // Collect subtask updates
+            // Collect subtask updates — include priority and deadline
             const subtaskItems = document.querySelectorAll('#editSubtasksContainer .edit-subtask-item');
             const subtaskUpdates = Array.from(subtaskItems).map(item => {
                 const subtaskId = item.getAttribute('data-subtask-id');
                 const title = item.querySelector('.edit-subtask-input').value;
                 const description = item.querySelector('.edit-subtask-desc').value;
                 const assignedTo = item.querySelector('.assignee-select').value;
-                
+                const priorityEl = item.querySelector('.subtask-priority');
+                const deadlineEl = item.querySelector('.subtask-deadline');
+
                 return {
                     id: subtaskId,
                     title,
                     description,
-                    assigned_to: assignedTo || null
+                    assigned_to: assignedTo || null,
+                    priority: priorityEl ? priorityEl.value : 'medium',
+                    deadline: deadlineEl ? deadlineEl.value || null : null,
                 };
             });
 
@@ -1441,20 +1479,14 @@ function showLogoutConfirmation() {
 
         function displayActiveTasks(tasks) {
             const container = document.getElementById('activeTasksList');
-            const activeTasks = tasks.filter(task => 
-                task.subtasks.some(subtask => subtask.status !== 'completed')
-            );
-            
-            displayFilteredTasks(container, activeTasks, 'active');
+            // Backend already filtered to active tasks — pass through directly
+            displayFilteredTasks(container, tasks, 'active');
         }
 
         function displayCompletedTasks(tasks) {
             const container = document.getElementById('completedTasksList');
-            const completedTasks = tasks.filter(task => 
-                task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed')
-            );
-            
-            displayFilteredTasks(container, completedTasks, 'completed');
+            // Backend already filtered to completed tasks — pass through directly
+            displayFilteredTasks(container, tasks, 'completed');
         }
 
         function displayFilteredTasks(container, tasks, type) {
@@ -1743,18 +1775,26 @@ function showLogoutConfirmation() {
             const container = document.getElementById('subtasksContainer');
             const subtaskDiv = document.createElement('div');
             subtaskDiv.className = 'subtask-item';
-            
+
             const isAssignmentActive = document.getElementById('assignmentToggle').classList.contains('active');
-            
+
             subtaskDiv.innerHTML = `
                 <input type="text" class="subtask-input" placeholder="Subtask title" required>
                 <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                <select class="form-select assignee-select" style="display: ${isAssignmentActive ? 'block' : 'none'};">
-                    <option value="">Select member...</option>
-                    ${selectedMembers.map(member => 
-                        `<option value="${member.id}">${member.name} - ${member.email}</option>`
-                    ).join('')}
-                </select>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+                    <select class="form-select subtask-priority" style="flex:1;min-width:120px;">
+                        <option value="medium">Priority: Medium</option>
+                        <option value="low">Priority: Low</option>
+                        <option value="high">Priority: High</option>
+                    </select>
+                    <input type="date" class="form-input subtask-deadline" style="flex:1;min-width:150px;" title="Deadline (optional)">
+                    <select class="form-select assignee-select" style="flex:2;min-width:160px;display:${isAssignmentActive ? 'block' : 'none'};">
+                        <option value="">Select member...</option>
+                        ${selectedMembers.map(member =>
+                            `<option value="${member.id}">${member.name} - ${member.email}</option>`
+                        ).join('')}
+                    </select>
+                </div>
                 <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
             `;
             container.appendChild(subtaskDiv);
@@ -1779,17 +1819,21 @@ function showLogoutConfirmation() {
             const description = document.getElementById('taskDescription').value;
             const assignSpecific = document.getElementById('assignmentToggle').classList.contains('active');
             
-            // Collect subtasks - UPDATED to include description
+            // Collect subtasks — include title, description, priority, deadline, assigned_to
             const subtaskItems = document.querySelectorAll('.subtask-item');
             const subtasks = Array.from(subtaskItems).map(item => {
                 const title = item.querySelector('.subtask-input').value;
                 const description = item.querySelector('.subtask-desc').value;
                 const assigneeSelect = item.querySelector('.assignee-select');
+                const prioritySelect = item.querySelector('.subtask-priority');
+                const deadlineInput = item.querySelector('.subtask-deadline');
                 const assignedTo = assignSpecific && assigneeSelect ? assigneeSelect.value : null;
-                
+
                 return {
                     title: title,
                     description: description,
+                    priority: prioritySelect ? prioritySelect.value : 'medium',
+                    deadline: deadlineInput ? deadlineInput.value || null : null,
                     assigned_to: assignedTo || null
                 };
             });
@@ -1903,9 +1947,11 @@ function showLogoutConfirmation() {
                                 <div class="detail-subtask-title">${subtask.title}</div>
                                 <div class="detail-subtask-description" style="color: #666; margin-bottom: 5px;">${subtask.description || 'No description'}</div>
                                 <div class="detail-subtask-assignee">
-                                    <strong>Assigned to:</strong> ${assigneeName} | 
-                                    <strong>Status:</strong> ${subtask.status} | 
-                                    <strong>Completed:</strong> ${completedDate}
+                                    <strong>Assigned to:</strong> ${assigneeName} |
+                                    <strong>Status:</strong> ${subtask.status} |
+                                    <strong>Completed:</strong> ${completedDate} |
+                                    <strong>Priority:</strong> <span style="text-transform:capitalize">${subtask.priority || 'medium'}</span>
+                                    ${subtask.deadline ? `| <strong>Deadline:</strong> ${new Date(subtask.deadline).toLocaleDateString()}` : ''}
                                 </div>
                             </div>
                             <span class="detail-subtask-status ${getSubtaskStatusClass(subtask)}">${subtask.status}</span>

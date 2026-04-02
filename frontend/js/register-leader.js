@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                const response = await fetch(`${API_BASE}/auth/register-leader/`, {
+                const response = await fetch(`${API_BASE}/auth/send-verification/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

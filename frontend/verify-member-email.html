@@ -189,7 +189,7 @@
             try {
                 console.log('🔍 Verifying member token:', token);
                 
-                const response = await fetch(`${API_BASE}/auth/verify-member-email`, {
+                const response = await fetch(`${API_BASE}/auth/verify-member-email/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -376,6 +376,21 @@
                     window.location.href = 'index.html';
                 }
             }
+
+            // Helper to parse JSON safely to avoid "unexpected token" errors
+            response.jsonSafe = async function() {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    try {
+                        return await response.json();
+                    } catch (e) {
+                        return { error: 'Failed to parse server response' };
+                    }
+                }
+                const text = await response.text();
+                return { error: text || `Server returned ${response.status}` };
+            };
+
             return response;
         };
         let currentUser = null;
@@ -383,7 +398,8 @@
         let currentAction = null;
         let currentSubtaskId = null;
         let currentTaskTitle = null;
-        
+        let isRefreshingData = false; // #13: Guard to prevent concurrent refresh floods
+
         // Track seen tasks to avoid duplicate notifications
         let lastAssignedSubtaskIds = new Set();
         let lastAvailableTaskIds = new Set();
@@ -395,7 +411,7 @@
         document.body.appendChild(notifContainer);
 
         // ===== INITIALIZATION =====
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const userData = localStorage.getItem('user');
             if (!userData) {
                 window.location.href = 'index.html';
@@ -403,15 +419,31 @@
             }
 
             currentUser = JSON.parse(userData);
-            
+
             // For member dashboard - check if user is actually a member and approved
-            if (window.location.pathname.includes('/member-dashboard') && 
+            if (window.location.pathname.includes('/member-dashboard') &&
                 (currentUser.role.toLowerCase() !== 'member' || currentUser.status.toLowerCase() !== 'approved')) {
                 localStorage.removeItem('user');
                 window.location.href = 'index.html';
                 return;
             }
-            
+
+            // #14: Re-sync user data from server to avoid stale localStorage
+            try {
+                const meRes = await fetch(`${API_BASE}/auth/me/`);
+                if (meRes.ok) {
+                    const freshUser = await meRes.jsonSafe();
+                    if (!freshUser.team_code && currentUser.team_code) {
+                        freshUser.team_code = currentUser.team_code;
+                    }
+                    if (freshUser.team && freshUser.team.code) {
+                        freshUser.team_code = freshUser.team.code;
+                    }
+                    currentUser = freshUser;
+                    localStorage.setItem('user', JSON.stringify(freshUser));
+                }
+            } catch(e) { /* proceed with cached user if server unavailable */ }
+
             initializeDashboard();
             loadMemberData();
             startAutoRefresh();
@@ -485,46 +517,39 @@
 
         // ===== AUTO REFRESH =====
         function startAutoRefresh() {
-            // Refresh data every 10 seconds for real-time updates
-            refreshInterval = setInterval(loadMemberData, 10000);
-            
-            // Also refresh the current tab every 20 seconds
-            setInterval(() => {
-                const activeTab = document.querySelector('.tab-content[style="display: block"]') || 
-                                document.querySelector('.tab-content.active');
+            // #13: Single consolidated 10-second refresh with guard flag — no competing timers
+            refreshInterval = setInterval(async () => {
+                if (document.visibilityState !== 'visible' || isRefreshingData) return;
+                await loadMemberData();
+
+                // Also refresh the currently visible tab
+                const activeTab = document.querySelector('.tab-content[style="display: block"]') ||
+                                  document.querySelector('.tab-content.active');
                 if (activeTab) {
                     const tabId = activeTab.id;
                     switch(tabId) {
-                        case 'new-tasks':
-                            loadNewTasks();
-                            break;
-                        case 'assigned-tasks':
-                            loadAssignedTasks();
-                            break;
-                        case 'active-tasks':
-                            loadActiveTasks();
-                            break;
-                        case 'completed-tasks':
-                            loadCompletedTasks();
-                            break;
-                        case 'team-tasks':
-                            loadTeamTasks();
-                            break;
+                        case 'new-tasks':      loadNewTasks(); break;
+                        case 'assigned-tasks': loadAssignedTasks(); break;
+                        case 'active-tasks':   loadActiveTasks(); break;
+                        case 'completed-tasks':loadCompletedTasks(); break;
+                        case 'team-tasks':     loadTeamTasks(); break;
                     }
                 }
-            }, 20000);
+            }, 10000);
         }
 
         // ===== OVERVIEW TAB FUNCTIONS =====
         async function loadMemberData() {
+            if (isRefreshingData) return; // #13: prevent concurrent floods
+            isRefreshingData = true;
             try {
                 // Load overview data with timeout
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
                 
                 const [myTasksResponse, teamTasksResponse] = await Promise.all([
-                    fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`, { signal: controller.signal }),
-                    fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`, { signal: controller.signal })
+                    fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`, { signal: controller.signal }),
+                    fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`, { signal: controller.signal })
                 ]);
 
                 clearTimeout(timeoutId);
@@ -533,8 +558,8 @@
                     throw new Error('Failed to fetch data');
                 }
 
-                const myTasksData = await myTasksResponse.json();
-                const teamTasksData = await teamTasksResponse.json();
+                const myTasksData = await myTasksResponse.jsonSafe();
+                const teamTasksData = await teamTasksResponse.jsonSafe();
                 
                 const myTasks = myTasksData.results || myTasksData;
                 const teamTasks = teamTasksData.results || teamTasksData;
@@ -551,12 +576,13 @@
                 isInitialLoad = false;
                 
             } catch (error) {
-                console.error('Error loading member data:', error);
                 if (error.name === 'AbortError') {
                     showMessage('Request timeout - server is busy', 'error');
                 } else {
                     showMessage('Failed to load dashboard data', 'error');
                 }
+            } finally {
+                isRefreshingData = false; // always release guard
             }
         }
 
@@ -748,7 +774,7 @@
         async function loadNewTasks() {
             try {
                 // Fetch all team tasks with their subtasks
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch tasks');
@@ -890,7 +916,7 @@
         // ===== ASSIGNED TASKS TAB FUNCTIONS =====
         async function loadAssignedTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
+                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch assigned tasks');
@@ -950,15 +976,24 @@
                             </div>
                             <span class="status-badge status-${getOverallProgress(subtasks)}">${getOverallProgress(subtasks).toUpperCase()}</span>
                         </div>
-                        
+
                         <div class="subtask-list">
                             ${subtasks.map(subtask => {
                                 const displayProgress = getCorrectProgress(subtask.progress);
+                                const priorityColors = { high: '#e74c3c', medium: '#f39c12', low: '#27ae60' };
+                                const priority = subtask.priority || 'medium';
+                                const deadlineStr = subtask.deadline
+                                    ? `<span style="font-size:0.75rem;color:#666;">📅 ${new Date(subtask.deadline).toLocaleDateString()}</span>`
+                                    : '';
                                 return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
                                             <div class="subtask-title">${subtask.title}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
+                                            <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+                                                <span style="font-size:0.75rem;padding:2px 8px;border-radius:20px;background:${priorityColors[priority]}22;color:${priorityColors[priority]};font-weight:600;text-transform:capitalize;">${priority} priority</span>
+                                                ${deadlineStr}
+                                            </div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
                                             <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
@@ -985,7 +1020,7 @@
         // ===== ACTIVE TASKS TAB FUNCTIONS =====
         async function loadActiveTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
+                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch tasks');
@@ -1081,7 +1116,7 @@
         // ===== COMPLETED TASKS TAB FUNCTIONS =====
         async function loadCompletedTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
+                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch tasks');
@@ -1163,20 +1198,17 @@
         // ===== TEAM TASKS TAB FUNCTIONS =====
         async function loadTeamTasks() {
             try {
-                console.log('Loading team tasks for team:', currentUser.team_code);
-                
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
-                
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 const tasks = data.results || data;
-                console.log('Team tasks response:', tasks);
-                
+
                 displayTeamTasks(tasks);
-                
+
             } catch (error) {
                 console.error('Error loading team tasks:', error);
                 showMessage('Failed to load team tasks: ' + error.message, 'error');
@@ -1427,7 +1459,7 @@
 
         async function takeSubtask(subtaskId) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/take`, {
+                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/take/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1479,7 +1511,7 @@
 
         async function updateTaskProgress(subtaskId, progress) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/progress`, {
+                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/progress/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1507,7 +1539,7 @@
                 // First try to get subtask details from the subtask endpoint
                 let subtask;
                 try {
-                    const subtaskResponse = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}`);
+                    const subtaskResponse = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/`);
                     if (subtaskResponse.ok) {
                         subtask = await subtaskResponse.json();
                     } else {
@@ -1515,7 +1547,7 @@
                     }
                 } catch (error) {
                     // If subtask endpoint fails, get it from user's subtasks
-                    const userTasksResponse = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
+                    const userTasksResponse = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
                     const userTasksData = await userTasksResponse.json();
                     const userTasks = userTasksData.results || userTasksData;
                     subtask = userTasks.find(task => task.id == subtaskId);

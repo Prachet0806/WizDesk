@@ -314,11 +314,14 @@ class DeleteRejectedMemberView(APIView):
 class RemoveTeamMemberView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     def delete(self, request, team_code, user_id):
-        if request.user.team.code != team_code:
+        if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         try:
             member = User.objects.get(id=user_id, team=request.user.team, role=User.Role.MEMBER)
-            member.delete() # Hard delete for simplicity, or we could just set team=None
-            return Response({'message': 'Member removed dynamically'})
+            # Soft-remove: preserve account and task history; just detach from team
+            member.team = None
+            member.status = User.Status.REJECTED
+            member.save()
+            return Response({'message': 'Member removed from team successfully'})
         except User.DoesNotExist:
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
