@@ -2,7 +2,7 @@
 
 WizDesk is a powerful, lightweight team and task management application designed for straightforward collaboration between Team Leaders and Team Members. Featuring dynamic real-time dashboards, an automated performance analytics suite, and a streamlined subtask delegation system.
 
-## 🚀 Key Features
+## Key Features
 
 *   **Role-Based Dashboards**: Distinct experiences for Team Leaders (who manage the team and assign subtasks) and Team Members (who receive and report progress on subtasks).
 *   **Approval Workflows**: Secure team registration where members join via a unique "Team Code" and undergo an approval pipeline by the Leader.
@@ -13,7 +13,7 @@ WizDesk is a powerful, lightweight team and task management application designed
 
 ---
 
-## 💻 Tech Stack
+## Tech Stack
 
 **Frontend**
 *   **HTML5 / CSS3**: Vanilla responsive design (No heavy frameworks required).
@@ -27,7 +27,7 @@ WizDesk is a powerful, lightweight team and task management application designed
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 WIZDESK/
@@ -52,7 +52,7 @@ WIZDESK/
 
 ---
 
-## 🛠️ Local Development Setup
+## Local Development Setup
 
 To get WizDesk running on your local machine, you will need **Python** and **PostgreSQL** installed.
 
@@ -104,5 +104,5 @@ Then simply open your browser and navigate to `http://localhost:3000` to interac
 
 ---
 
-## 🛡️ License & Contributions
+## License & Contributions
 Built for team organization and speed. Contributions, tweaks, and PRs are open and welcome.
