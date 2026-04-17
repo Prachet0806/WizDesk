@@ -91,6 +91,15 @@
                 opacity: 0;
             }
         }
+
+        .yellow-dot-badge {
+            background-color: #ffc107;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: auto;
+        }
     </style>
 </head>
 <body>
@@ -117,10 +126,12 @@
                 <li data-tab="active-tasks">
                     <span class="nav-icon">⚡</span>
                     <span>In Progress</span>
+                    <span class="yellow-dot-badge" id="activeTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="completed-tasks">
                     <span class="nav-icon">✅</span>
                     <span>Completed</span>
+                    <span class="yellow-dot-badge" id="completedTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="team-tasks">
                     <span class="nav-icon">👥</span>
@@ -387,6 +398,8 @@
         // Track seen tasks to avoid duplicate notifications
         let lastAssignedSubtaskIds = new Set();
         let lastAvailableTaskIds = new Set();
+        let lastActiveTaskIds = new Set();
+        let lastCompletedTaskIds = new Set();
         let isInitialLoad = true;
 
         // Create notification container
@@ -462,6 +475,13 @@
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+            // Hide notification badge if present
+            if (tabId === 'active-tasks') {
+                document.getElementById('activeTasksBadge').style.display = 'none';
+            } else if (tabId === 'completed-tasks') {
+                document.getElementById('completedTasksBadge').style.display = 'none';
+            }
             
             // Load specific data for tabs
             switch(tabId) {
@@ -485,10 +505,10 @@
 
         // ===== AUTO REFRESH =====
         function startAutoRefresh() {
-            // Refresh data every 10 seconds for real-time updates
-            refreshInterval = setInterval(loadMemberData, 10000);
+            // Refresh data every 3 seconds for real-time updates
+            refreshInterval = setInterval(loadMemberData, 3000);
             
-            // Also refresh the current tab every 20 seconds
+            // Also refresh the current tab every 3 seconds
             setInterval(() => {
                 const activeTab = document.querySelector('.tab-content[style="display: block"]') || 
                                 document.querySelector('.tab-content.active');
@@ -561,6 +581,26 @@
         }
 
         function checkNewTasks(myTasks, teamTasks) {
+            // Check for new Active/Completed tasks for badges
+            myTasks.forEach(task => {
+                const progress = getCorrectProgress(task.progress);
+                if (progress === 'in_progress' || progress === 'testing') {
+                    if (!lastActiveTaskIds.has(task.id)) {
+                        if (!isInitialLoad && document.getElementById('active-tasks').style.display !== 'block') {
+                            document.getElementById('activeTasksBadge').style.display = 'inline-block';
+                        }
+                        lastActiveTaskIds.add(task.id);
+                    }
+                } else if (progress === 'completed') {
+                    if (!lastCompletedTaskIds.has(task.id)) {
+                        if (!isInitialLoad && document.getElementById('completed-tasks').style.display !== 'block') {
+                            document.getElementById('completedTasksBadge').style.display = 'inline-block';
+                        }
+                        lastCompletedTaskIds.add(task.id);
+                    }
+                }
+            });
+
             // 1. Check for New Assigned Tasks
             myTasks.forEach(task => {
                 if (!lastAssignedSubtaskIds.has(task.id)) {

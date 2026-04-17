@@ -5,6 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leader Dashboard - WizDesk</title>
     <link rel="stylesheet" href="leader.css">
+    <style>
+        /* Notifications Sidebar/Toast Styles */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .task-notification {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 5px solid #28a745;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 320px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.5s;
+        }
+
+        .task-notification:hover {
+            transform: scale(1.02);
+        }
+
+        .task-notification.closing {
+            animation: fadeOut 0.5s forwards;
+        }
+
+        .notif-icon {
+            font-size: 1.5rem;
+            margin-top: 2px;
+        }
+
+        .notif-content {
+            flex: 1;
+        }
+
+        .notif-title {
+            font-weight: 700;
+            color: #333;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .notif-msg {
+            color: #666;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .yellow-dot-badge {
+            background-color: #ffc107;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: auto;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(110%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -31,10 +119,12 @@
                 <li data-tab="active-tasks">
                     <span class="nav-icon">⚡</span>
                     <span>Active Tasks</span>
+                    <span class="yellow-dot-badge" id="activeTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="completed-tasks">
                     <span class="nav-icon">✅</span>
                     <span>Completed Tasks</span>
+                    <span class="yellow-dot-badge" id="completedTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="members">
                     <span class="nav-icon">👥</span>
@@ -539,6 +629,101 @@
         let rejectedMembers = [];
         let memberPerformanceData = [];
         let selectedMembers = [];
+        let lastCompletedTaskIds = new Set();
+        let lastActiveTaskIds = new Set();
+        let isInitialLoad = true;
+
+        // Create notification container
+        const notifContainer = document.createElement('div');
+        notifContainer.className = 'notification-container';
+        document.body.appendChild(notifContainer);
+
+        function showTaskNotification(title, message) {
+            const notif = document.createElement('div');
+            notif.className = `task-notification`;
+            
+            notif.innerHTML = `
+                <div class="notif-icon">✅</div>
+                <div class="notif-content">
+                    <span class="notif-title">${title}</span>
+                    <span class="notif-msg">${message}</span>
+                </div>
+            `;
+            
+            notif.onclick = () => {
+                notif.classList.add('closing');
+                setTimeout(() => notif.remove(), 500);
+            };
+            
+            notifContainer.appendChild(notif);
+            
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                if (notif.parentElement) {
+                    notif.classList.add('closing');
+                    setTimeout(() => notif.remove(), 500);
+                }
+            }, 8000);
+        }
+
+        function checkTaskUpdates(tasks) {
+            tasks.forEach(task => {
+                let hasActive = false;
+                let hasSubtasks = false;
+                
+                if (task.subtasks) {
+                    hasSubtasks = task.subtasks.length > 0;
+                    task.subtasks.forEach(subtask => {
+                        const sStatus = subtask.status;
+                        const sProgress = subtask.progress;
+                        
+                        if (sStatus === 'completed' || sProgress === 'completed') {
+                            if (!lastCompletedTaskIds.has(subtask.id)) {
+                                if (!isInitialLoad) {
+                                    showTaskNotification(
+                                        'Task Completed!',
+                                        `${subtask.assigned_to_details?.name || 'A team member'} completed "${subtask.title}"`
+                                    );
+                                    if (document.getElementById('completed-tasks').style.display !== 'block') {
+                                        document.getElementById('completedTasksBadge').style.display = 'inline-block';
+                                    }
+                                }
+                                lastCompletedTaskIds.add(subtask.id);
+                            }
+                        } else if (sStatus === 'in_progress' || sStatus === 'testing' || sProgress === 'in_progress' || sProgress === 'testing') {
+                            hasActive = true;
+                        }
+                    });
+                }
+                
+                if (hasActive) {
+                    if (!lastActiveTaskIds.has(task.id)) {
+                        if (!isInitialLoad && document.getElementById('active-tasks').style.display !== 'block') {
+                            document.getElementById('activeTasksBadge').style.display = 'inline-block';
+                        }
+                        lastActiveTaskIds.add(task.id);
+                    }
+                }
+                
+                if (!hasSubtasks) {
+                    if (task.status === 'completed') {
+                         if (!lastCompletedTaskIds.has(task.id)) {
+                             if (!isInitialLoad && document.getElementById('completed-tasks').style.display !== 'block') {
+                                 document.getElementById('completedTasksBadge').style.display = 'inline-block';
+                             }
+                             lastCompletedTaskIds.add(task.id);
+                         }
+                    } else if (task.status === 'active') {
+                         if (!lastActiveTaskIds.has(task.id)) {
+                             if (!isInitialLoad && document.getElementById('active-tasks').style.display !== 'block') {
+                                 document.getElementById('activeTasksBadge').style.display = 'inline-block';
+                             }
+                             lastActiveTaskIds.add(task.id);
+                         }
+                    }
+                }
+            });
+        }
 
         // 🔐 AUTHENTICATION CHECK
         document.addEventListener('DOMContentLoaded', function() {
@@ -571,7 +756,7 @@
                         loadPerformanceData();
                     }
                 }
-            }, 10000);
+            }, 3000);
         });
 
         // Utility functions
@@ -603,6 +788,13 @@
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+            // Hide notification badge if present
+            if (tabId === 'active-tasks') {
+                document.getElementById('activeTasksBadge').style.display = 'none';
+            } else if (tabId === 'completed-tasks') {
+                document.getElementById('completedTasksBadge').style.display = 'none';
+            }
             
             // Load specific data for tabs
             switch(tabId) {
@@ -786,6 +978,8 @@ function showLogoutConfirmation() {
                 if (response.ok) {
                     let data = await response.json();
                     allTasks = data.results || data;
+                    checkTaskUpdates(allTasks);
+                    isInitialLoad = false;
                     displayRecentTasks();
                 } else {
                     console.error('Failed to load tasks');
