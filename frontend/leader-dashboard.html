@@ -254,8 +254,16 @@
                             <button class="filter-btn" onclick="showTab('active-tasks')">Active Tasks</button>
                             <button class="filter-btn" onclick="showTab('completed-tasks')">Completed Tasks</button>
                             
-                            <div class="search-box" style="margin-left: auto; min-width: 250px;">
-                                <input type="text" id="taskSearchInput" class="search-input" placeholder="Search tasks..." onkeyup="handleTaskSearch(this.value)">
+                            <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+                                <select id="taskSortSelect" class="form-select" style="width: 160px; height: 40px; margin-bottom: 0; padding: 5px 10px;" onchange="applyTaskSort(this.value)">
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="subtasks">Most Subtasks</option>
+                                    <option value="progress">Completion %</option>
+                                </select>
+                                <div class="search-box" style="min-width: 200px; margin-left: 0;">
+                                    <input type="text" id="taskSearchInput" class="search-input" placeholder="Search tasks..." onkeyup="handleTaskSearch(this.value)">
+                                </div>
                             </div>
                         </div>
                         
@@ -1456,8 +1464,8 @@ function showLogoutConfirmation() {
                 const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
                 if (response.ok) {
                     let data = await response.json();
-                    const tasks = data.results || data;
-                    displayTasksForManagement(tasks);
+                    allTasks = data.results || data;
+                    applyTaskSort(); // Sort and display
                 } else {
                     console.error('Failed to load tasks for management');
                     displayTasksForManagement([]);
@@ -1661,6 +1669,28 @@ function showLogoutConfirmation() {
                     card.style.display = 'none';
                 }
             });
+        }
+
+        function applyTaskSort(criterion) {
+            const currentSort = criterion || document.getElementById('taskSortSelect').value;
+            let sortedTasks = [...allTasks];
+            
+            switch(currentSort) {
+                case 'newest':
+                    sortedTasks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    break;
+                case 'oldest':
+                    sortedTasks.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                    break;
+                case 'subtasks':
+                    sortedTasks.sort((a, b) => (b.subtasks ? b.subtasks.length : 0) - (a.subtasks ? a.subtasks.length : 0));
+                    break;
+                case 'progress':
+                    sortedTasks.sort((a, b) => calculateProgress(b) - calculateProgress(a));
+                    break;
+            }
+            
+            displayTasksForManagement(sortedTasks);
         }
 
         // Countdown Timer Logic

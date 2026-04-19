@@ -397,41 +397,11 @@
                         <input type="text" id="teamName" placeholder="Team Name" required>
                     </div>
                     
-                    <button type="button" class="btn-primary btn-verify" id="verifyEmailBtn">
-                        Verify Your Email
+                    <button type="button" class="btn-primary" id="createTeamBtn">
+                        Create Team
                     </button>
                 </form>
 
-                <!-- Verification Section (Hidden initially) -->
-                <div id="verificationSection" style="display: none;">
-                    <div class="verification-section">
-                        <h3>Step 2: Verify Your Email</h3>
-                        <div id="verificationStatus" class="verification-status verification-pending">
-                            📧 Check your email for verification link
-                        </div>
-                        
-                        <div id="verificationSuccess" style="display: none;">
-                            <div class="verification-status verification-success">
-                                ✅ Email verified successfully!
-                            </div>
-                            <p>Your email has been verified. Click "Create Team" to complete registration.</p>
-                        </div>
-
-                        <div id="manualVerification" style="display: none;">
-                            <p style="margin-bottom: 10px; color: #666;">If you didn't receive the email, enter the verification code manually:</p>
-                            <div class="form-group">
-                                <input type="text" id="manualTokenInput" placeholder="Enter verification code" class="verification-code-input">
-                            </div>
-                            <button type="button" class="btn-primary" id="manualVerifyBtn">
-                                Verify Code
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="button" class="btn-primary" id="createTeamBtn" style="display: none;">
-                        Create Team
-                    </button>
-                </div>
                 
                 <div id="successMessage" class="success-message">
                     <h3>🎉 Registration Successful!</h3>
@@ -466,13 +436,7 @@
 
         // DOM Elements
         const leaderRegisterForm = document.getElementById('leaderRegisterForm');
-        const verificationSection = document.getElementById('verificationSection');
-        const verificationStatus = document.getElementById('verificationStatus');
-        const verificationSuccess = document.getElementById('verificationSuccess');
-        const manualVerification = document.getElementById('manualVerification');
         const successMessage = document.getElementById('successMessage');
-        const verifyEmailBtn = document.getElementById('verifyEmailBtn');
-        const manualVerifyBtn = document.getElementById('manualVerifyBtn');
         const createTeamBtn = document.getElementById('createTeamBtn');
         const passwordInput = document.getElementById('leaderPassword');
         const confirmPasswordInput = document.getElementById('confirmPassword');
@@ -583,11 +547,11 @@
             const isPasswordMatch = checkPasswordMatch();
             const isFormComplete = name && email && password && teamName;
 
-            verifyEmailBtn.disabled = !(isFormComplete && isEmailValid && isPasswordValid && isPasswordMatch);
+            createTeamBtn.disabled = !(isFormComplete && isEmailValid && isPasswordValid && isPasswordMatch);
         }
 
-        // Send verification email
-        async function sendVerificationEmail() {
+        // Handle direct registration
+        async function handleRegistration() {
             const name = document.getElementById('leaderName').value;
             const email = document.getElementById('leaderEmail').value;
             const password = passwordInput.value;
@@ -598,170 +562,78 @@
                 input.disabled = true;
             });
 
-            verifyEmailBtn.textContent = 'Sending Verification...';
-            verifyEmailBtn.disabled = true;
+            createTeamBtn.textContent = 'Creating Team...';
+            createTeamBtn.disabled = true;
+            createTeamBtn.classList.add('loading');
 
             try {
-                const response = await fetch(`${API_BASE}/auth/send-verification/`, {
+                // Step 1: Send "Verification" (Creates the user)
+                const sendResponse = await fetch(`${API_BASE}/auth/send-verification/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password, teamName })
                 });
 
-                const result = await response.json();
+                const sendResult = await sendResponse.json();
 
-                if (response.ok) {
-                    verificationToken = result.verificationToken;
-                    
-                    // Show verification section
-                    leaderRegisterForm.style.display = 'none';
-                    verificationSection.style.display = 'block';
-                    
-                    if (result.emailSent && result.emailMethod === 'email') {
-                        showMessage('Mock email sent! Token auto-filled below.', 'success');
-                        manualVerification.style.display = 'block';
-                        document.getElementById('manualTokenInput').value = verificationToken;
-                    } else {
-                        // Email service not configured, show manual token
-                        showMessage('Email service not available. Use manual verification.', 'warning');
-                        manualVerification.style.display = 'block';
-                    }
-                } else {
-                    showMessage(result.error, 'error');
-                    // Re-enable form fields if failed
-                    document.querySelectorAll('#leaderRegisterForm input').forEach(input => {
-                        input.disabled = false;
-                    });
-                    verifyEmailBtn.textContent = 'Verify Your Email';
-                    validateForm();
+                if (!sendResponse.ok) {
+                    throw new Error(sendResult.error || 'Failed to initialize registration');
                 }
-            } catch (error) {
-                showMessage('Failed to send verification email', 'error');
-                // Re-enable form fields if failed
-                document.querySelectorAll('#leaderRegisterForm input').forEach(input => {
-                    input.disabled = false;
-                });
-                verifyEmailBtn.textContent = 'Verify Your Email';
-                validateForm();
-            }
-        }
 
-        // Manual verification - FIXED ENDPOINT
-        async function verifyManualToken() {
-            const token = document.getElementById('manualTokenInput').value;
+                const token = sendResult.verificationToken;
 
-            if (!token) {
-                showMessage('Please enter the verification code', 'error');
-                return;
-            }
-
-            manualVerifyBtn.textContent = 'Verifying...';
-            manualVerifyBtn.disabled = true;
-
-            try {
-                // FIXED: Changed from verify-and-register to verify-email
-                const response = await fetch(`${API_BASE}/auth/verify-email/`, {
+                // Step 2: Directly Verify (Completes registration and creates team)
+                const verifyResponse = await fetch(`${API_BASE}/auth/verify-email/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token })
                 });
 
-                const result = await response.json();
+                const verifyResult = await verifyResponse.json();
 
-                if (response.ok) {
-                    showVerificationSuccess();
-                    completeRegistration(result);
+                if (verifyResponse.ok) {
+                    completeRegistration(verifyResult);
                 } else {
-                    showMessage(result.error || 'Invalid verification code', 'error');
+                    throw new Error(verifyResult.error || 'Failed to complete registration');
                 }
             } catch (error) {
-                showMessage('Verification failed', 'error');
-            } finally {
-                manualVerifyBtn.textContent = 'Verify Code';
-                manualVerifyBtn.disabled = false;
+                showMessage(error.message, 'error');
+                // Re-enable form fields if failed
+                document.querySelectorAll('#leaderRegisterForm input').forEach(input => {
+                    input.disabled = false;
+                });
+                createTeamBtn.textContent = 'Create Team';
+                createTeamBtn.disabled = false;
+                createTeamBtn.classList.remove('loading');
+                validateForm();
             }
         }
 
-        // Complete registration after verification
-        async function completeRegistration(result) {
-            // Show success message with team code
+        // Complete registration display
+        function completeRegistration(result) {
+            leaderRegisterForm.style.display = 'none';
+            successMessage.style.display = 'block';
             document.getElementById('generatedTeamCode').textContent = result.teamCode;
             
-            // Show email status
-            if (result.emailSent) {
-                if (result.emailMethod === 'email') {
-                    document.getElementById('emailStatus').innerHTML = `
-                        <div class="email-success">
-                            ✅ Team code has been sent to your email address: <strong>${result.user.email}</strong>
-                        </div>
-                    `;
-                } else {
-                    document.getElementById('emailStatus').innerHTML = `
-                        <div class="email-warning">
-                            📧 Email service not configured. Please save the team code above.
-                        </div>
-                    `;
-                }
+            // Show email status if applicable, otherwise hide
+            const emailStatus = document.getElementById('emailStatus');
+            if (result.emailSent && result.emailMethod === 'email') {
+                emailStatus.innerHTML = `
+                    <div class="email-success">
+                        ✅ Team code has been sent to your email address: <strong>${result.user.email}</strong>
+                    </div>
+                `;
             } else {
-                document.getElementById('emailStatus').innerHTML = `
+                emailStatus.innerHTML = `
                     <div class="email-warning">
-                        ⚠️ Could not send email. Please save the team code: <strong>${result.teamCode}</strong>
+                        📋 Registration complete! Please save your team code above.
                     </div>
                 `;
             }
-            
-            verificationSection.style.display = 'none';
-            successMessage.style.display = 'block';
-        }
-
-        function showVerificationSuccess() {
-            verificationSuccess.style.display = 'block';
-            manualVerification.style.display = 'none';
-            createTeamBtn.style.display = 'block';
-            verificationStatus.className = 'verification-status verification-success';
-            verificationStatus.textContent = '✅ Email verified successfully!';
         }
 
         // Event Listeners
-        verifyEmailBtn.addEventListener('click', sendVerificationEmail);
-        manualVerifyBtn.addEventListener('click', verifyManualToken);
-
-        // Create Team Button - FIXED ENDPOINT
-        createTeamBtn.addEventListener('click', async () => {
-            if (!verificationToken) {
-                showMessage('Please verify your email first', 'error');
-                return;
-            }
-
-            createTeamBtn.classList.add('loading');
-            createTeamBtn.disabled = true;
-            createTeamBtn.textContent = 'Creating Team...';
-
-            try {
-                // FIXED: Changed from verify-and-register to verify-email
-                const response = await fetch(`${API_BASE}/auth/verify-email/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: verificationToken })
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    completeRegistration(result);
-                } else {
-                    showMessage(result.error, 'error');
-                    createTeamBtn.classList.remove('loading');
-                    createTeamBtn.disabled = false;
-                    createTeamBtn.textContent = 'Create Team';
-                }
-            } catch (error) {
-                showMessage('Registration failed. Please try again.', 'error');
-                createTeamBtn.classList.remove('loading');
-                createTeamBtn.disabled = false;
-                createTeamBtn.textContent = 'Create Team';
-            }
-        });
+        createTeamBtn.addEventListener('click', handleRegistration);
 
         // Password input event listeners
         passwordInput.addEventListener('input', function() {

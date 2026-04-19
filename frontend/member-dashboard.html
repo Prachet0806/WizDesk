@@ -63,14 +63,14 @@
 
         .notif-title {
             font-weight: 700;
-            color: #333;
+            color: var(--text-primary);
             font-size: 0.95rem;
             margin-bottom: 2px;
             display: block;
         }
 
         .notif-msg {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 0.85rem;
             line-height: 1.4;
         }
@@ -190,6 +190,24 @@
                         <span class="user-role">Team Member</span>
                     </div>
                     <span class="team-code" id="teamCodeDisplay"></span>
+                    
+                    <!-- Notification Bell -->
+                    <div class="notification-bell-container">
+                        <button id="notifBell" class="theme-toggle" title="Notifications" onclick="toggleNotifDropdown(event)">
+                            🔔
+                            <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
+                        </button>
+                        <div id="notifDropdown" class="notif-dropdown">
+                            <div class="notif-dropdown-header">
+                                <h3>Notifications</h3>
+                                <button class="btn-clear-notifs" onclick="clearNotifications(event)">Clear All</button>
+                            </div>
+                            <div id="notifList" class="notif-list">
+                                <div class="empty-notifs">No recent notifications</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="themeToggle" class="theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">🌙</button>
                     <button id="logoutBtn" class="btn btn-danger">Logout</button>
                 </div>
@@ -424,7 +442,8 @@
             
             if (hours >= 24) return null; 
             
-            return `<span style='color: #dc3545; font-weight: bold;'>⏱️ ${hours}h ${minutes}m remaining</span>`;
+            const color = document.body.classList.contains('dark-theme') ? '#ff6b6b' : '#dc3545';
+            return `<span style='color: ${color}; font-weight: bold;'>⏱️ ${hours}h ${minutes}m remaining</span>`;
         }
 
         // Add Authorization header to all fetch requests
@@ -530,6 +549,118 @@
         notifContainer.className = 'notification-container';
         document.body.appendChild(notifContainer);
 
+        // ===== NOTIFICATION INBOX LOGIC =====
+        let notifications = [];
+
+        function loadNotifications() {
+            if (currentUser && currentUser.id) {
+                notifications = JSON.parse(localStorage.getItem(`notifs_${currentUser.id}`)) || [];
+            }
+        }
+
+        function saveNotification(title, message, type) {
+            const newNotif = {
+                id: Date.now(),
+                title,
+                message,
+                type,
+                time: new Date().toISOString(),
+                read: false
+            };
+            notifications.unshift(newNotif);
+            // Keep only latest 20
+            if (notifications.length > 20) notifications = notifications.slice(0, 20);
+            if (currentUser && currentUser.id) {
+                localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
+            }
+            updateNotifUI();
+        }
+
+        function updateNotifUI() {
+            const list = document.getElementById('notifList');
+            const badge = document.getElementById('notifBadge');
+            const unreadCount = notifications.filter(n => !n.read).length;
+
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+
+            if (notifications.length === 0) {
+                list.innerHTML = '<div class="empty-notifs">No recent notifications</div>';
+                return;
+            }
+
+            list.innerHTML = notifications.map(n => `
+                <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markAsRead(${n.id})">
+                    <div class="notif-item-icon">${n.type === 'assigned' ? '📋' : '🆕'}</div>
+                    <div class="notif-item-content">
+                        <div class="notif-item-title">${escapeHtml(n.title)}</div>
+                        <div class="notif-item-msg">${escapeHtml(n.message)}</div>
+                        <div class="notif-item-time">${formatNotifTime(n.time)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatNotifTime(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+            return date.toLocaleDateString();
+        }
+
+        function toggleNotifDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('notifDropdown');
+            const isVisible = dropdown.style.display === 'flex';
+            
+            // Close other dropdowns if any
+            dropdown.style.display = isVisible ? 'none' : 'flex';
+            
+            if (!isVisible) {
+                // Mark all as read when opening? Or individual?
+                // Let's do individual on click, but maybe clear badge after opening?
+                // For now, let's keep it simple.
+            }
+        }
+
+        function markAsRead(id) {
+            const notif = notifications.find(n => n.id === id);
+            if (notif) {
+                notif.read = true;
+                if (currentUser && currentUser.id) {
+                    localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
+                }
+                updateNotifUI();
+            }
+        }
+
+        function clearNotifications(event) {
+            event.stopPropagation();
+            notifications = [];
+            if (currentUser && currentUser.id) {
+                localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
+            }
+            updateNotifUI();
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('notifDropdown');
+            const bell = document.getElementById('notifBell');
+            if (dropdown && !dropdown.contains(e.target) && !bell.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
         // ===== INITIALIZATION =====
         document.addEventListener('DOMContentLoaded', function () {
             const userData = localStorage.getItem('user');
@@ -539,6 +670,7 @@
             }
 
             currentUser = JSON.parse(userData);
+            loadNotifications(); // Load user-specific notifications
 
             // For member dashboard - check if user is actually a member and approved
             if (window.location.pathname.includes('/member-dashboard') &&
@@ -551,6 +683,7 @@
             initializeDashboard();
             loadMemberData();
             startAutoRefresh();
+            updateNotifUI(); // Initial UI update
         });
 
         function initializeDashboard() {
@@ -759,6 +892,9 @@
         }
 
         function showTaskNotification(title, message, type = 'assigned') {
+            // Save to persistent inbox
+            saveNotification(title, message, type);
+
             const notif = document.createElement('div');
             notif.className = `task-notification ${type}`;
 
@@ -1446,7 +1582,7 @@
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                                                 <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
-                                                <span style="font-size: 0.8rem; color: #666;">
+                                                <span style="font-size: 0.8rem; color: var(--text-secondary);">
                                                     ${assignmentInfo}
                                                 </span>
                                                 ${getActionButton(subtask.id, displayProgress, subtask.title, subtask.status, subtask.assigned_to)}
@@ -1459,7 +1595,7 @@
                 }).join('')}
                             </div>
                         </div>
-                        ` : '<p style="color: #666; text-align: center; padding: 20px;">No subtasks available for this task.</p>'}
+                        ` : '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No subtasks available for this task.</p>'}
                     </div>
                 `;
             }).join('');
@@ -1510,7 +1646,7 @@
 
             // If task is available for taking
             if (isAvailable && !assignedTo) {
-                return `<button class="btn btn-primary btn-sm" onclick="confirmTakeTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Take Task</button>`;
+                return `<button class="btn btn-take-task btn-sm" onclick="confirmTakeTask('${subtaskId}', '${escapeHtml(taskTitle)}')">✅ Take Task</button>`;
             }
 
             // If task is assigned to me
