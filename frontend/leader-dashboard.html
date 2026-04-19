@@ -322,7 +322,7 @@
                         
                         <!-- Top Performers Section -->
                         <div class="top-performers-section" style="margin-bottom: 30px;">
-                            <h3 style="margin-bottom: 20px; color: #333; font-size: 1.2rem;">🏆 Top Performers</h3>
+                            <h3 style="margin-bottom: 20px; color: var(--text-primary); font-size: 1.2rem;">🏆 Top Performers</h3>
                             <div class="top-performers-grid" id="topPerformersGrid">
                                 <!-- Top performers will be loaded here -->
                             </div>
@@ -785,17 +785,17 @@
             initializeDashboard();
             loadTeamData();
             
-            // 🔄 AUTO REFRESH (10 seconds)
+            // 🔄 AUTO REFRESH (30 seconds)
             setInterval(() => {
                 if (document.visibilityState === 'visible') {
                     console.log('Auto-refreshing team data...');
                     loadTeamData();
                     // If on performance tab, refresh it too
                     if (document.getElementById('performance').style.display !== 'none') {
-                        loadPerformanceData();
+                        loadPerformanceData(true); // Silent refresh
                     }
                 }
-            }, 3000);
+            }, 30000);
         });
 
         // Utility functions
@@ -2235,11 +2235,13 @@ function showLogoutConfirmation() {
         }
 
         // NEW PERFORMANCE TAB FUNCTIONS
-        async function loadPerformanceData() {
+        async function loadPerformanceData(isSilent = false) {
             try {
-                // Display loading messages
-                document.getElementById('topPerformersGrid').innerHTML = '<p style="text-align: center; padding: 20px;">Loading top performers...</p>';
-                document.getElementById('membersPerformanceTable').innerHTML = '<p style="text-align: center; padding: 20px;">Loading performance data...</p>';
+                if (!isSilent) {
+                    // Only display loading messages for initial/manual load
+                    document.getElementById('topPerformersGrid').innerHTML = '<p style="text-align: center; padding: 20px;">Loading top performers...</p>';
+                    document.getElementById('membersPerformanceTable').innerHTML = '<p style="text-align: center; padding: 20px;">Loading performance data...</p>';
+                }
 
                 // Load performance data from API
                 const response = await fetch(`${API_BASE}/performance/team/${currentUser.team_code}/`);
@@ -2301,20 +2303,20 @@ function showLogoutConfirmation() {
                 return `
                     <div class="top-performer-card ${rankClass}">
                         <div class="rank-badge ${rankClass}">${rankIcon}</div>
-                        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 10px; color: #333;">
+                        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">
                             ${member.name}
                         </div>
-                        <div style="color: #666; margin-bottom: 15px; font-size: 0.9rem;">
+                        <div style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
                             ${member.email}
                         </div>
                         <div style="display: flex; justify-content: space-around; margin: 20px 0;">
                             <div style="text-align: center;">
-                                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">${member.assigned_tasks || 0}</div>
-                                <div style="font-size: 0.8rem; color: #666;">Assigned</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-color);">${member.assigned_tasks || 0}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Assigned</div>
                             </div>
                             <div style="text-align: center;">
                                 <div style="font-size: 1.5rem; font-weight: 700; color: #28a745;">${member.completed_tasks || 0}</div>
-                                <div style="font-size: 0.8rem; color: #666;">Completed</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Completed</div>
                             </div>
                         </div>
                         <button class="view-details-btn" onclick="showMemberPerformanceDetails('${member.id}')">
@@ -2411,16 +2413,21 @@ function showLogoutConfirmation() {
                     completedTasks = allTasks.filter(task => task.progress === 'completed');
                 }
 
+                // Calculate completion rate
+                const completionRate = member.assigned_tasks > 0 
+                    ? Math.round((member.completed_tasks / member.assigned_tasks) * 100) 
+                    : 0;
+
                 // Populate modal content
                 document.getElementById('memberPerformanceContent').innerHTML = `
                     <div style="margin-bottom: 25px;">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                            <div class="member-avatar" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; margin-bottom: 30px;">
+                            <div class="member-avatar" style="width: 80px; height: 80px; font-size: 2rem;">
                                 ${member.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #333;">${member.name}</div>
-                                <div style="color: #666;">${member.email}</div>
+                                <div style="font-size: 1.8rem; font-weight: 600; color: var(--text-primary);">${member.name}</div>
+                                <div style="color: var(--text-secondary); font-size: 1.1rem;">${member.email}</div>
                             </div>
                         </div>
 
@@ -2434,24 +2441,24 @@ function showLogoutConfirmation() {
                                 <div class="member-detail-label">Tasks Completed</div>
                             </div>
                             <div class="member-detail-card">
-                                <div class="member-detail-value">${member.in_progress_tasks || 0}</div>
+                                <div class="member-detail-value">${member.active_tasks || 0}</div>
                                 <div class="member-detail-label">In Progress</div>
                             </div>
                             <div class="member-detail-card">
-                                <div class="member-detail-value">${member.completion_rate || 0}%</div>
+                                <div class="member-detail-value">${completionRate}%</div>
                                 <div class="member-detail-label">Completion Rate</div>
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <h3 style="margin-bottom: 15px; color: #333;">Completed Tasks</h3>
+                        <h3 style="margin-bottom: 15px; color: var(--text-primary);">Completed Tasks</h3>
                         ${completedTasks.length > 0 ? `
                             <div class="completed-tasks-list">
                                 ${completedTasks.map(task => `
                                     <div class="completed-task-item">
                                         <div class="completed-task-title">${task.task_title} - ${task.title}</div>
-                                        <div class="completed-task-description" style="color: #666; margin: 5px 0;">${task.description || 'No description'}</div>
+                                        <div class="completed-task-description" style="color: var(--text-secondary); margin: 5px 0;">${task.description || 'No description'}</div>
                                         <div class="completed-task-meta">
                                             Completed on: ${new Date(task.updated_at).toLocaleDateString()} | 
                                             Main Task: ${task.task_title}
