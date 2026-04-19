@@ -1234,7 +1234,7 @@ function showLogoutConfirmation() {
                             <div class="request-name">${request.name}</div>
                             <div class="request-email">${request.email}</div>
                             <div class="request-meta">
-                                Requested to join on ${new Date(request.created_at).toLocaleDateString()}
+                                Requested to join on ${request.date_joined ? new Date(request.date_joined).toLocaleDateString() : 'Unknown Date'}
                             </div>
                         </div>
                         <div class="request-actions">

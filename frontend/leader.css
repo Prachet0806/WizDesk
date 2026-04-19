@@ -715,7 +715,7 @@ body {
 .empty-state {
     text-align: center;
     padding: 60px 20px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .empty-state .icon {
@@ -726,7 +726,7 @@ body {
 
 .empty-state h3 {
     margin-bottom: 10px;
-    color: #333;
+    color: var(--text-primary);
 }
 
 /* NEW STYLES FOR ADDED FEATURES */
@@ -845,7 +845,7 @@ body {
 
 .stat-label {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .member-actions {
@@ -970,18 +970,19 @@ body {
 .request-name {
     font-size: 1.2rem;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 5px;
 }
 
 .request-email {
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 10px;
 }
 
 .request-meta {
-    color: #888;
+    color: var(--text-secondary);
     font-size: 0.9rem;
+    opacity: 0.8;
 }
 
 .request-actions {
