@@ -19,12 +19,12 @@
         }
 
         .task-notification {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             border-left: 5px solid #28a745;
             padding: 15px 20px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow);
             width: 320px;
             display: flex;
             align-items: flex-start;
@@ -54,14 +54,14 @@
 
         .notif-title {
             font-weight: 700;
-            color: #333;
+            color: var(--text-primary);
             font-size: 0.95rem;
             margin-bottom: 2px;
             display: block;
         }
 
         .notif-msg {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 0.85rem;
             line-height: 1.4;
         }
@@ -423,10 +423,16 @@
                                 <div class="subtask-item">
                                     <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
                                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                                    <select class="form-select assignee-select" style="display: none;">
-                                        <option value="">Select member...</option>
-                                    </select>
+                                    <div class="subtask-field">
+                                        <label class="subtask-field-label">Deadline</label>
+                                        <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                                    </div>
+                                    <div class="subtask-field assignee-field" style="display: none;">
+                                        <label class="subtask-field-label">Assign To</label>
+                                        <select class="form-select assignee-select">
+                                            <option value="">Select member...</option>
+                                        </select>
+                                    </div>
                                     <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                                 </div>
                             </div>
@@ -1939,10 +1945,16 @@ function showLogoutConfirmation() {
                 <div class="subtask-item">
                     <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                    <select class="form-select assignee-select" style="display: none;">
-                        <option value="">Select member...</option>
-                    </select>
+                    <div class="subtask-field">
+                        <label class="subtask-field-label">Deadline</label>
+                        <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                    </div>
+                    <div class="subtask-field assignee-field" style="display: none;">
+                        <label class="subtask-field-label">Assign To</label>
+                        <select class="form-select assignee-select">
+                            <option value="">Select member...</option>
+                        </select>
+                    </div>
                     <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                 </div>`;
             
@@ -1964,17 +1976,17 @@ function showLogoutConfirmation() {
         function toggleAssignment() {
             const toggle = document.getElementById('assignmentToggle');
             const section = document.getElementById('assignmentSection');
-            const assignSelects = document.querySelectorAll('.assignee-select');
+            const isActive = toggle.classList.toggle('active');
             
-            if (toggle.classList.contains('active')) {
-                toggle.classList.remove('active');
-                section.style.display = 'none';
-                assignSelects.forEach(select => select.style.display = 'none');
-            } else {
-                toggle.classList.add('active');
-                section.style.display = 'block';
-                assignSelects.forEach(select => select.style.display = 'block');
-                
+            section.style.display = isActive ? 'block' : 'none';
+            
+            // Show/hide assignee dropdowns and labels in subtasks
+            const assigneeFields = document.querySelectorAll('.assignee-field');
+            assigneeFields.forEach(field => {
+                field.style.display = isActive ? 'block' : 'none';
+            });
+            
+            if (isActive) {
                 // Populate assignee dropdowns with selected members only
                 updateAssigneeDropdowns();
             }
@@ -2068,13 +2080,19 @@ function showLogoutConfirmation() {
             subtaskDiv.innerHTML = `
                 <input type="text" class="subtask-input" placeholder="Subtask title" required>
                 <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                <select class="form-select assignee-select" style="display: ${isAssignmentActive ? 'block' : 'none'};">
-                    <option value="">Select member...</option>
-                    ${selectedMembers.map(member => 
-                        `<option value="${member.id}">${member.name} - ${member.email}</option>`
-                    ).join('')}
-                </select>
+                <div class="subtask-field">
+                    <label class="subtask-field-label">Deadline</label>
+                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                </div>
+                <div class="subtask-field assignee-field" style="display: ${isAssignmentActive ? 'block' : 'none'};">
+                    <label class="subtask-field-label">Assign To</label>
+                    <select class="form-select assignee-select">
+                        <option value="">Select member...</option>
+                        ${selectedMembers.map(member => 
+                            `<option value="${member.id}">${member.name} - ${member.email}</option>`
+                        ).join('')}
+                    </select>
+                </div>
                 <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
             `;
             container.appendChild(subtaskDiv);
@@ -2148,10 +2166,16 @@ function showLogoutConfirmation() {
                         <div class="subtask-item">
                             <input type="text" class="subtask-input" placeholder="Subtask title" required>
                             <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                            <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                            <select class="form-select assignee-select" style="display: none;">
-                                <option value="">Select member...</option>
-                            </select>
+                            <div class="subtask-field">
+                                <label class="subtask-field-label">Deadline</label>
+                                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                            </div>
+                            <div class="subtask-field assignee-field" style="display: none;">
+                                <label class="subtask-field-label">Assign To</label>
+                                <select class="form-select assignee-select">
+                                    <option value="">Select member...</option>
+                                </select>
+                            </div>
                             <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                         </div>
                     `;

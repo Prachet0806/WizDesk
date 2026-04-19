@@ -20,12 +20,12 @@
         }
 
         .task-notification {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             border-left: 5px solid #667eea;
             padding: 15px 20px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--shadow);
             width: 320px;
             display: flex;
             align-items: flex-start;
@@ -429,8 +429,8 @@
         }
 
         // Countdown Timer Logic
-        function getCountdown(deadline) {
-            if (!deadline) return null;
+        function getCountdown(deadline, progress) {
+            if (!deadline || progress === 'completed') return null;
             const now = new Date();
             const target = new Date(deadline);
             const diff = target - now;
@@ -981,19 +981,17 @@
                 const now = new Date();
                 const deadlineDate = new Date(task.deadline);
                 const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
-                const countdown = getCountdown(task.deadline);
 
                 return `
                     <div class="task-card" style="border-left: 4px solid ${daysLeft <= 1 ? '#dc3545' : '#ffc107'}">
                         <div class="task-header">
                             <div>
-                                <div class="task-title">${task.task_title || task.title} ${countdown ? `(${countdown})` : ''}</div>
+                                <div class="task-title">${task.task_title || task.title} ${getCountdown(task.deadline, displayProgress) || ''}</div>
                                 <div class="task-description">${task.title}</div>
                                 <div style="font-size: 0.8rem; color: ${daysLeft <= 1 ? '#dc3545' : '#666'}; margin-top: 5px;">
                                     ⏱️ Due: ${deadlineDate.toLocaleString()}
                                 </div>
                             </div>
-                            <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
                         </div>
                         
                         <div class="task-actions">
@@ -1032,7 +1030,6 @@
                                 <div class="task-title">${task.task_title}</div>
                                 <div class="task-description">${task.title}</div>
                             </div>
-                            <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
                         </div>
                         
                         <div class="task-actions">
@@ -1170,11 +1167,10 @@
                     return `
                                         <div class="subtask-item">
                                             <div class="subtask-info">
-                                                <div class="subtask-title">${subtask.title || 'Untitled Subtask'} ${countdown ? `(${countdown})` : ''}</div>
+                                                <div class="subtask-title">${subtask.title || 'Untitled Subtask'} ${getCountdown(subtask.deadline, displayProgress) || ''}</div>
                                                 <div class="subtask-description">${subtask.description || 'No description'}</div>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                                <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
                                                 <span style="font-size: 0.8rem; color: #666;">
                                                     ${assignmentInfo}
                                                 </span>
@@ -1263,7 +1259,7 @@
                     return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
-                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline) || ''}</div>
+                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline, displayProgress) || ''}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1365,7 +1361,7 @@
                     return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
-                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline) || ''}</div>
+                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline, displayProgress) || ''}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1634,14 +1630,14 @@
             const isAssignedToMe = assignedTo === currentUser.id;
             const isAvailable = status === 'available';
 
-            // If task is completed, show completed badge
+            // If task is completed, return nothing for action (status is already shown)
             if (displayProgress === 'completed') {
-                return `<span class="status-badge status-completed">COMPLETED</span>`;
+                return '';
             }
 
             // If task is assigned to someone else and not available
             if (assignedTo && !isAssignedToMe && !isAvailable) {
-                return `<span class="status-badge status-assigned">ASSIGNED TO OTHER</span>`;
+                return `<span class="status-badge status-assigned">${getProgressDisplay(displayProgress)}</span>`;
             }
 
             // If task is available for taking
@@ -1860,6 +1856,13 @@
                         <span class="task-detail-label">Progress</span>
                         <div class="task-detail-value">
                             <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
+                        </div>
+                    </div>
+
+                    <div class="task-detail-item">
+                        <span class="task-detail-label">Due Date & Time</span>
+                        <div class="task-detail-value" style="color: #dc3545; font-weight: 600;">
+                            ${subtask.deadline ? new Date(subtask.deadline).toLocaleString() : 'No deadline set'}
                         </div>
                     </div>
                     
