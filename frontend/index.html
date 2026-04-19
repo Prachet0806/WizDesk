@@ -938,7 +938,7 @@
         // Check member status before login
         const checkMemberStatus = async (email, teamCode) => {
             try {
-                const response = await fetch(`${API_BASE}/auth/check-member-status`, {
+                const response = await fetch(`${API_BASE}/auth/check-member-status/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, teamCode })

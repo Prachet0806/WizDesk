@@ -368,14 +368,35 @@
         }
 
         .subtask-item {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
             align-items: center;
         }
 
+        .subtask-item .subtask-input {
+            grid-column: span 3;
+        }
+
+        .subtask-item .subtask-deadline,
+        .subtask-item .assignee-select,
+        .subtask-item .remove-subtask {
+            grid-column: span 1;
+        }
+
         .subtask-input {
-            flex: 1;
+            width: 100%;
+        }
+
+        .subtask-deadline {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
         }
 
         .remove-subtask {
@@ -618,7 +639,23 @@
                     config.headers['Authorization'] = `Bearer ${token}`;
                 }
             }
-            return originalFetch(resource, config);
+            try {
+                const response = await originalFetch(resource, config);
+                
+                // Global Error Handling
+                if (!response.ok && response.status >= 500) {
+                    if (typeof showMessage === 'function') {
+                        showMessage('A server error occurred (' + response.status + '). Please try again later.', 'error');
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                if (typeof showMessage === 'function') {
+                    showMessage('A network error occurred. Please check your connection.', 'error');
+                }
+                throw error;
+            }
         };
         let currentUser = null;
         let teamMembers = [];
@@ -713,7 +750,7 @@
         async function loadTeamData() {
             try {
                 // Load team members
-                const membersResponse = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/members`);
+                const membersResponse = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/members/`);
                 teamMembers = await membersResponse.json();
                 
                 // Load tasks
@@ -730,7 +767,7 @@
 
         async function loadTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
                 allTasks = await response.json();
                 displayTasks();
             } catch (error) {
@@ -803,7 +840,7 @@
             const assigneeSelects = document.querySelectorAll('.assignee-select');
             assigneeSelects.forEach(select => {
                 select.innerHTML = '<option value="">Select member...</option>' +
-                    teamMembers.map(member => 
+                    teamMembers.filter(m => m.role.toUpperCase() !== 'LEADER').map(member => 
                         `<option value="${member.id}">${member.name} (${member.email})</option>`
                     ).join('');
             });
@@ -816,9 +853,10 @@
             subtaskDiv.className = 'subtask-item';
             subtaskDiv.innerHTML = `
                 <input type="text" class="form-input subtask-input" placeholder="Subtask title" required>
+                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
                 <select class="form-select assignee-select" style="display: none;">
                     <option value="">Select member...</option>
-                    ${teamMembers.map(member => 
+                    ${teamMembers.filter(m => m.role.toUpperCase() !== 'LEADER').map(member => 
                         `<option value="${member.id}">${member.name} (${member.email})</option>`
                     ).join('')}
                 </select>
@@ -842,11 +880,13 @@
             const subtaskInputs = document.querySelectorAll('.subtask-item');
             const subtasks = Array.from(subtaskInputs).map(item => {
                 const title = item.querySelector('.subtask-input').value;
+                const deadline = item.querySelector('.subtask-deadline').value;
                 const assigneeSelect = item.querySelector('.assignee-select');
                 const assignedTo = assignSpecific ? assigneeSelect.value : null;
                 
                 return {
                     title: title,
+                    deadline: deadline || null,
                     assigned_to: assignedTo || null
                 };
             });
@@ -882,6 +922,7 @@
                     document.getElementById('subtasksContainer').innerHTML = `
                         <div class="subtask-item">
                             <input type="text" class="form-input subtask-input" placeholder="Subtask title" required>
+                            <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
                             <select class="form-select assignee-select" style="display: none;">
                                 <option value="">Select member...</option>
                             </select>

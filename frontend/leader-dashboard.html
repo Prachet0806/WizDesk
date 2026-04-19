@@ -154,6 +154,7 @@
                         <span class="user-role">Team Leader</span>
                     </div>
                     <span class="team-code" id="teamCodeDisplay"></span>
+                    <button id="themeToggle" class="theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">🌙</button>
                     <button id="logoutBtn" class="btn btn-danger">Logout</button>
                 </div>
             </div>
@@ -252,6 +253,10 @@
                             <button class="filter-btn active" onclick="showTab('tasks')">All Tasks</button>
                             <button class="filter-btn" onclick="showTab('active-tasks')">Active Tasks</button>
                             <button class="filter-btn" onclick="showTab('completed-tasks')">Completed Tasks</button>
+                            
+                            <div class="search-box" style="margin-left: auto; min-width: 250px;">
+                                <input type="text" id="taskSearchInput" class="search-input" placeholder="Search tasks..." onkeyup="handleTaskSearch(this.value)">
+                            </div>
                         </div>
                         
                         <div class="task-list" id="allTasksManagement">
@@ -342,7 +347,7 @@
                         
                         <!-- All Team Members Performance -->
                         <div class="all-members-section">
-                            <h3 style="margin-bottom: 20px; color: #333; font-size: 1.2rem;">👥 All Team Members</h3>
+                            <h3 style="margin-bottom: 20px; color: var(--text-primary); font-size: 1.2rem;">👥 All Team Members</h3>
                             <div class="members-performance-table" id="membersPerformanceTable">
                                 <!-- Members performance table will be loaded here -->
                             </div>
@@ -386,7 +391,7 @@
                             
                             <div class="form-group">
                                 <label class="form-label">Available Team Members</label>
-                                <div style="background: white; border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto;">
+                                <div style="background: var(--bg-secondary); border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color);">
                                     <div id="membersChecklist">
                                         <!-- Members will be populated here -->
                                     </div>
@@ -410,6 +415,7 @@
                                 <div class="subtask-item">
                                     <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
                                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
+                                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
                                     <select class="form-select assignee-select" style="display: none;">
                                         <option value="">Select member...</option>
                                     </select>
@@ -516,7 +522,7 @@
                 </div>
                 
                 <div class="detail-subtasks-section">
-                    <h3 style="margin-bottom: 15px;">Subtasks</h3>
+                    <h3>Subtasks</h3>
                     <div class="detail-subtask-list" id="detailSubtasksList">
                         <!-- Subtasks will be populated here -->
                     </div>
@@ -552,6 +558,23 @@
     <script>
         const API_BASE = '/api';
 
+        // Theme Management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.getElementById('themeToggle').textContent = '☀️';
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+        }
+
+        initTheme();
+
         // Add Authorization header to all fetch requests
         const originalFetch = window.fetch;
         let isRefreshing = false;
@@ -573,7 +596,17 @@
                 }
             }
             
-            const response = await originalFetch(resource, config);
+            try {
+                const response = await originalFetch(resource, config);
+                
+                // Global Error Handling
+                if (!response.ok && response.status >= 500) {
+                    if (typeof showMessage === 'function') {
+                        showMessage('A server error occurred (' + response.status + '). Please try again later.', 'error');
+                    }
+                }
+
+
             
             // Auto Refresh JWT Token Flow
             if (response.status === 401 && resource !== `${API_BASE}/token/refresh/` && !resource.includes('/auth/login')) {
@@ -621,6 +654,12 @@
                 }
             }
             return response;
+        } catch (error) {
+            if (typeof showMessage === 'function') {
+                showMessage('A network error occurred. Please check your connection.', 'error');
+            }
+            throw error;
+        }
         };
         let currentUser = null;
         let teamMembers = [];
@@ -899,7 +938,7 @@ function showLogoutConfirmation() {
         async function loadTeamData() {
             try {
                 // Load team members (only approved)
-                const membersResponse = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/all-members`);
+                const membersResponse = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/all-members/`);
                 if (membersResponse.ok) {
                     teamMembers = await membersResponse.json();
                 } else {
@@ -926,7 +965,7 @@ function showLogoutConfirmation() {
 
         async function loadPendingRequests() {
             try {
-                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/pending-requests`);
+                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/pending-requests/`);
                 if (response.ok) {
                     pendingRequests = await response.json();
                     updatePendingRequestsBadge();
@@ -942,7 +981,7 @@ function showLogoutConfirmation() {
 
         async function loadRejectedMembers() {
             try {
-                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/rejected-members`);
+                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/rejected-members/`);
                 if (response.ok) {
                     rejectedMembers = await response.json();
                     updateRejectedMembersDisplay();
@@ -974,7 +1013,7 @@ function showLogoutConfirmation() {
 
         async function loadTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
                 if (response.ok) {
                     let data = await response.json();
                     allTasks = data.results || data;
@@ -1072,7 +1111,7 @@ function showLogoutConfirmation() {
             }
 
             try {
-                const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+                const response = await fetch(`${API_BASE}/tasks/${taskId}/`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUser.id })
@@ -1103,7 +1142,7 @@ function showLogoutConfirmation() {
             }
 
             try {
-                const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+                const response = await fetch(`${API_BASE}/tasks/${taskId}/`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUser.id })
@@ -1199,7 +1238,7 @@ function showLogoutConfirmation() {
 
         async function approveMember(userId) {
             try {
-                const response = await fetch(`${API_BASE}/auth/approve-member`, {
+                const response = await fetch(`${API_BASE}/auth/approve-member/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1249,7 +1288,7 @@ function showLogoutConfirmation() {
 
         async function rejectMember(userId) {
             try {
-                const response = await fetch(`${API_BASE}/auth/reject-member`, {
+                const response = await fetch(`${API_BASE}/auth/reject-member/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1336,7 +1375,7 @@ function showLogoutConfirmation() {
 
         async function approveRejectedMember(userId) {
             try {
-                const response = await fetch(`${API_BASE}/auth/approve-rejected-member`, {
+                const response = await fetch(`${API_BASE}/auth/approve-rejected-member/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1381,7 +1420,7 @@ function showLogoutConfirmation() {
             }
 
             try {
-                const response = await fetch(`${API_BASE}/auth/delete-rejected-member/${userId}`, {
+                const response = await fetch(`${API_BASE}/auth/delete-rejected-member/${userId}/`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -1414,7 +1453,7 @@ function showLogoutConfirmation() {
         // Task Management Functions
         async function loadAllTasksForManagement() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
                 if (response.ok) {
                     let data = await response.json();
                     const tasks = data.results || data;
@@ -1489,7 +1528,7 @@ function showLogoutConfirmation() {
         // Edit Task Functionality
         async function editTask(taskId) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/${taskId}`);
+                const response = await fetch(`${API_BASE}/tasks/${taskId}/`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch task');
                 }
@@ -1502,13 +1541,16 @@ function showLogoutConfirmation() {
                 
                 // Populate subtasks for editing
                 const subtasksContainer = document.getElementById('editSubtasksContainer');
-                subtasksContainer.innerHTML = task.subtasks.map(subtask => `
+                subtasksContainer.innerHTML = task.subtasks.map(subtask => {
+                    const deadlineDate = subtask.deadline ? new Date(subtask.deadline).toISOString().slice(0, 16) : '';
+                    return `
                     <div class="edit-subtask-item" data-subtask-id="${subtask.id}">
                         <input type="text" class="edit-subtask-input" value="${subtask.title}" placeholder="Subtask title" required>
                         <textarea class="edit-subtask-desc" placeholder="Subtask description">${subtask.description || ''}</textarea>
+                        <input type="datetime-local" class="edit-subtask-deadline" value="${deadlineDate}" title="Due Date (Optional)">
                         <select class="form-select assignee-select">
                             <option value="">Not assigned</option>
-                            ${teamMembers.map(member => 
+                            ${teamMembers.filter(m => m.role.toUpperCase() !== 'LEADER').map(member => 
                                 `<option value="${member.id}" ${subtask.assigned_to === member.id ? 'selected' : ''}>
                                     ${member.name} - ${member.email}
                                 </option>`
@@ -1516,7 +1558,7 @@ function showLogoutConfirmation() {
                         </select>
                         <button type="button" class="remove-subtask" onclick="removeEditSubtask(this)">Remove</button>
                     </div>
-                `).join('');
+                `}).join('');
                 
                 showModal('editTaskModal');
             } catch (error) {
@@ -1536,19 +1578,21 @@ function showLogoutConfirmation() {
                 const subtaskId = item.getAttribute('data-subtask-id');
                 const title = item.querySelector('.edit-subtask-input').value;
                 const description = item.querySelector('.edit-subtask-desc').value;
+                const deadline = item.querySelector('.edit-subtask-deadline').value;
                 const assignedTo = item.querySelector('.assignee-select').value;
                 
                 return {
                     id: subtaskId,
                     title,
                     description,
+                    deadline: deadline || null,
                     assigned_to: assignedTo || null
                 };
             });
 
             try {
                 // Update main task
-                const taskResponse = await fetch(`${API_BASE}/tasks/${taskId}`, {
+                const taskResponse = await fetch(`${API_BASE}/tasks/${taskId}/`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1565,12 +1609,13 @@ function showLogoutConfirmation() {
 
                 // Update subtasks
                 for (const subtask of subtaskUpdates) {
-                    const subtaskResponse = await fetch(`${API_BASE}/tasks/subtask/${subtask.id}`, {
+                    const subtaskResponse = await fetch(`${API_BASE}/tasks/subtask/${subtask.id}/`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             title: subtask.title,
                             description: subtask.description,
+                            deadline: subtask.deadline,
                             assigned_to: subtask.assigned_to,
                             userId: currentUser.id
                         })
@@ -1601,10 +1646,43 @@ function showLogoutConfirmation() {
             }
         }
 
-        // Task Filtering Functions
+        // Task Search and Filtering
+        function handleTaskSearch(query) {
+            const searchTerm = query.toLowerCase();
+            const taskCards = document.querySelectorAll('.task-list .task-card');
+            
+            taskCards.forEach(card => {
+                const title = card.querySelector('.task-title').textContent.toLowerCase();
+                const desc = card.querySelector('.task-description').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || desc.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Countdown Timer Logic
+        function getCountdown(deadline) {
+            if (!deadline) return null;
+            const now = new Date();
+            const target = new Date(deadline);
+            const diff = target - now;
+            
+            if (diff <= 0) return "Overdue";
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (hours >= 24) return null; // Only show countdown for < 24h
+            
+            return `⏱️ ${hours}h ${minutes}m remaining`;
+        }
+
         async function loadTasksByStatus(status) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/status/${status}`);
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/status/${status}/`);
                 if (response.ok) {
                     let data = await response.json();
                     const tasks = data.results || data;
@@ -1727,7 +1805,7 @@ function showLogoutConfirmation() {
         // Member Management Functions
         async function loadAllTeamMembers() {
             try {
-                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/all-members`);
+                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/all-members/`);
                 if (response.ok) {
                     const members = await response.json();
                     teamMembers = members;
@@ -1794,7 +1872,7 @@ function showLogoutConfirmation() {
             }
 
             try {
-                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/member/${memberId}`, {
+                const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/member/${memberId}/`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ leaderId: currentUser.id })
@@ -1817,18 +1895,35 @@ function showLogoutConfirmation() {
 
         // Task Creation Functions - UPDATED with subtask description and member search
         function showCreateTaskModal() {
-            // Reset selected members
+            // Reset form
+            document.getElementById('createTaskForm').reset();
+            
+            // Reset assignment section
             selectedMembers = [];
             updateSelectedMembersList();
+            document.getElementById('assignmentToggle').classList.remove('active');
+            document.getElementById('assignmentSection').style.display = 'none';
+            
+            // Reset subtasks to one empty field
+            document.getElementById('subtasksContainer').innerHTML = `
+                <div class="subtask-item">
+                    <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
+                    <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
+                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                    <select class="form-select assignee-select" style="display: none;">
+                        <option value="">Select member...</option>
+                    </select>
+                    <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
+                </div>`;
             
             // Populate members checklist
             const checklist = document.getElementById('membersChecklist');
-            checklist.innerHTML = teamMembers.map(member => `
-                <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #f0f0f0;">
+            checklist.innerHTML = teamMembers.filter(m => m.role.toUpperCase() !== 'LEADER').map(member => `
+                <div class="member-item-row">
                     <input type="checkbox" id="member-${member.id}" value="${member.id}" class="member-checkbox" onchange="toggleMemberSelection('${member.id}', this.checked)">
                     <label for="member-${member.id}" style="flex: 1; cursor: pointer;">
                         <div style="font-weight: 500;">${member.name}</div>
-                        <div style="font-size: 0.9rem; color: #666;">${member.email}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">${member.email}</div>
                     </label>
                 </div>
             `).join('');
@@ -1894,15 +1989,15 @@ function showLogoutConfirmation() {
             const container = document.getElementById('selectedMembersList');
             
             if (selectedMembers.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No members selected</div>';
+                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No members selected</div>';
                 return;
             }
             
             container.innerHTML = selectedMembers.map(member => `
                 <div class="selected-member-item">
                     <div>
-                        <div style="font-weight: 500;">${member.name}</div>
-                        <div style="font-size: 0.9rem; color: #666;">${member.email}</div>
+                        <div style="font-weight: 500; color: var(--text-primary);">${member.name}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">${member.email}</div>
                     </div>
                     <button type="button" class="remove-member-btn" onclick="removeSelectedMember('${member.id}')">Remove</button>
                 </div>
@@ -1943,6 +2038,7 @@ function showLogoutConfirmation() {
             subtaskDiv.innerHTML = `
                 <input type="text" class="subtask-input" placeholder="Subtask title" required>
                 <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
+                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
                 <select class="form-select assignee-select" style="display: ${isAssignmentActive ? 'block' : 'none'};">
                     <option value="">Select member...</option>
                     ${selectedMembers.map(member => 
@@ -1978,12 +2074,14 @@ function showLogoutConfirmation() {
             const subtasks = Array.from(subtaskItems).map(item => {
                 const title = item.querySelector('.subtask-input').value;
                 const description = item.querySelector('.subtask-desc').value;
+                const deadline = item.querySelector('.subtask-deadline').value;
                 const assigneeSelect = item.querySelector('.assignee-select');
                 const assignedTo = assignSpecific && assigneeSelect ? assigneeSelect.value : null;
                 
                 return {
                     title: title,
                     description: description,
+                    deadline: deadline || null,
                     assigned_to: assignedTo || null
                 };
             });
@@ -2020,6 +2118,7 @@ function showLogoutConfirmation() {
                         <div class="subtask-item">
                             <input type="text" class="subtask-input" placeholder="Subtask title" required>
                             <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
+                            <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
                             <select class="form-select assignee-select" style="display: none;">
                                 <option value="">Select member...</option>
                             </select>
@@ -2048,7 +2147,7 @@ function showLogoutConfirmation() {
         // NEW FEATURES: Task Detail View
         async function showTaskDetail(taskId) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/${taskId}`);
+                const response = await fetch(`${API_BASE}/tasks/${taskId}/`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch task details');
                 }
@@ -2090,13 +2189,18 @@ function showLogoutConfirmation() {
                     const completedDate = subtask.status === 'completed' && subtask.completed_at 
                         ? new Date(subtask.completed_at).toLocaleDateString() 
                         : 'Not completed';
+                    const deadline = subtask.deadline 
+                        ? new Date(subtask.deadline).toLocaleString() 
+                        : 'No deadline';
                     
+                    const countdown = getCountdown(subtask.deadline);
                     return `
                         <div class="detail-subtask-item">
                             <div class="detail-subtask-info">
-                                <div class="detail-subtask-title">${subtask.title}</div>
+                                <div class="detail-subtask-title">${subtask.title} ${countdown ? `(${countdown})` : ''}</div>
                                 <div class="detail-subtask-description" style="color: #666; margin-bottom: 5px;">${subtask.description || 'No description'}</div>
                                 <div class="detail-subtask-assignee">
+                                    <strong>Due Date:</strong> ${deadline} | 
                                     <strong>Assigned to:</strong> ${assigneeName} | 
                                     <strong>Status:</strong> ${subtask.status} | 
                                     <strong>Completed:</strong> ${completedDate}
@@ -2138,7 +2242,7 @@ function showLogoutConfirmation() {
                 document.getElementById('membersPerformanceTable').innerHTML = '<p style="text-align: center; padding: 20px;">Loading performance data...</p>';
 
                 // Load performance data from API
-                const response = await fetch(`${API_BASE}/performance/team/${currentUser.team_code}`);
+                const response = await fetch(`${API_BASE}/performance/team/${currentUser.team_code}/`);
                 if (response.ok) {
                     memberPerformanceData = await response.json();
                     displayPerformanceData();
@@ -2299,7 +2403,7 @@ function showLogoutConfirmation() {
                 }
 
                 // Load member's completed tasks
-                const tasksResponse = await fetch(`${API_BASE}/tasks/user/${memberId}/subtasks`);
+                const tasksResponse = await fetch(`${API_BASE}/tasks/user/${memberId}/subtasks/`);
                 let completedTasks = [];
                 if (tasksResponse.ok) {
                     let data = await tasksResponse.json();

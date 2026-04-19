@@ -12,17 +12,32 @@ function authHeaders() {
 }
 
 async function apiFetch(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: { ...authHeaders(), ...(options.headers || {}) }
-    });
-    // If 401, session expired — redirect to login
-    if (response.status === 401) {
-        localStorage.clear();
-        window.location.href = 'index.html';
-        return null;
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: { ...authHeaders(), ...(options.headers || {}) }
+        });
+        
+        // Global Error Handling
+        if (!response.ok && response.status >= 500) {
+            if (typeof showMessage === 'function') {
+                showMessage('A server error occurred (' + response.status + '). Please try again later.', 'error');
+            }
+        }
+        
+        // If 401, session expired — redirect to login
+        if (response.status === 401) {
+            localStorage.clear();
+            window.location.href = 'index.html';
+            return null;
+        }
+        return response;
+    } catch (error) {
+        if (typeof showMessage === 'function') {
+            showMessage('A network error occurred. Please check your connection.', 'error');
+        }
+        throw error;
     }
-    return response;
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────

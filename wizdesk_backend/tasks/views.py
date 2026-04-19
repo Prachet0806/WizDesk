@@ -39,7 +39,8 @@ class TaskCreateView(APIView):
                     task=task,
                     title=st['title'],
                     description=st.get('description', ''),
-                    assigned_to_id=st.get('assigned_to')
+                    assigned_to_id=st.get('assigned_to'),
+                    deadline=st.get('deadline')
                 )
                 if subtask.assigned_to_id:
                     subtask.status = Subtask.Status.ASSIGNED
@@ -227,6 +228,9 @@ class SubtaskDetailView(APIView):
             subtask.title = title
         if description is not None:
             subtask.description = description
+        
+        if 'deadline' in request.data:
+            subtask.deadline = request.data.get('deadline') or None
             
         if 'assigned_to' in request.data:
             assigned_to = request.data.get('assigned_to')

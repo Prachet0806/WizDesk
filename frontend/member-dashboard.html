@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +25,7 @@
             border-left: 5px solid #667eea;
             padding: 15px 20px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             width: 320px;
             display: flex;
             align-items: flex-start;
@@ -79,6 +80,7 @@
                 transform: translateX(110%);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
@@ -100,8 +102,43 @@
             display: inline-block;
             margin-left: auto;
         }
+        .theme-toggle {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            margin: 0 10px;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: scale(1.1);
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Sidebar Navigation -->
@@ -153,6 +190,7 @@
                         <span class="user-role">Team Member</span>
                     </div>
                     <span class="team-code" id="teamCodeDisplay"></span>
+                    <button id="themeToggle" class="theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">🌙</button>
                     <button id="logoutBtn" class="btn btn-danger">Logout</button>
                 </div>
             </div>
@@ -203,7 +241,8 @@
 
                     <div class="section">
                         <h2>🎯 Quick Actions</h2>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                             <button class="btn btn-primary" onclick="showTab('new-tasks')">
                                 🆕 View New Tasks
                             </button>
@@ -220,13 +259,18 @@
                 <!-- ===== NEW TASKS TAB ===== -->
                 <div id="new-tasks" class="tab-content" style="display: none;">
                     <div class="section">
-                        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                        <div class="section-header"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                             <h2>🆕 Available Tasks</h2>
-                            <button class="btn btn-primary" onclick="loadNewTasks()">
-                                🔄 Refresh
-                            </button>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="text" class="search-input" style="width: 250px; margin-bottom: 0;" placeholder="Search available tasks..." onkeyup="handleTaskSearch(this.value, 'newTasksList')">
+                                <button class="btn btn-primary" onclick="loadNewTasks()">
+                                    🔄 Refresh
+                                </button>
+                            </div>
                         </div>
-                        <p style="color: #666; margin-bottom: 20px;">These tasks are available for any team member to take. Click "Take Task" to assign it to yourself.</p>
+                        <p style="color: #666; margin-bottom: 20px;">These tasks are available for any team member to
+                            take. Click "Take Task" to assign it to yourself.</p>
                         <div id="newTasksList" class="task-list">
                             <!-- New tasks will be loaded here -->
                         </div>
@@ -236,7 +280,10 @@
                 <!-- ===== ASSIGNED TASKS TAB ===== -->
                 <div id="assigned-tasks" class="tab-content" style="display: none;">
                     <div class="section">
-                        <h2>📋 My Assigned Tasks</h2>
+                        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>📋 My Assigned Tasks</h2>
+                            <input type="text" class="search-input" style="width: 250px; margin-bottom: 0;" placeholder="Search my tasks..." onkeyup="handleTaskSearch(this.value, 'assignedTasksList')">
+                        </div>
                         <div id="assignedTasksList" class="task-list">
                             <!-- Assigned tasks will be loaded here -->
                         </div>
@@ -267,7 +314,8 @@
                 <div id="team-tasks" class="tab-content" style="display: none;">
                     <div class="section">
                         <h2>👥 All Team Tasks</h2>
-                        <p style="color: #666; margin-bottom: 20px;">View all tasks in your team, their progress, and who is working on them.</p>
+                        <p style="color: #666; margin-bottom: 20px;">View all tasks in your team, their progress, and
+                            who is working on them.</p>
                         <div id="teamTasksList" class="task-list">
                             <!-- Team tasks will be loaded here -->
                         </div>
@@ -278,7 +326,7 @@
     </div>
 
     <!-- ===== MODALS ===== -->
-    
+
     <!-- Task Details Modal -->
     <div id="taskDetailsModal" class="modal">
         <div class="modal-content">
@@ -319,6 +367,66 @@
         // ===== CONFIGURATION =====
         const API_BASE = '/api';
 
+        // Theme Management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.getElementById('themeToggle').textContent = '☀️';
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+        }
+
+        initTheme();
+
+        // Refresh timers every minute
+        setInterval(() => {
+            if (activeTab === 'overview') loadTasks();
+            else if (activeTab === 'assigned-tasks') loadAssignedTasks();
+            else if (activeTab === 'new-tasks') loadNewTasks();
+            else if (activeTab === 'active-tasks') loadActiveTasks();
+        }, 60000);
+
+        // Task Search
+        function handleTaskSearch(query, listId) {
+            const searchTerm = query.toLowerCase();
+            const container = document.getElementById(listId);
+            const taskCards = container.querySelectorAll('.task-card');
+            
+            taskCards.forEach(card => {
+                const title = card.querySelector('.task-title').textContent.toLowerCase();
+                const desc = card.querySelector('.task-description').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || desc.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Countdown Timer Logic
+        function getCountdown(deadline) {
+            if (!deadline) return null;
+            const now = new Date();
+            const target = new Date(deadline);
+            const diff = target - now;
+            
+            if (diff <= 0) return "<span style='color: #dc3545;'>Overdue</span>";
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (hours >= 24) return null; 
+            
+            return `<span style='color: #dc3545; font-weight: bold;'>⏱️ ${hours}h ${minutes}m remaining</span>`;
+        }
+
         // Add Authorization header to all fetch requests
         const originalFetch = window.fetch;
         let isRefreshing = false;
@@ -329,72 +437,87 @@
             refreshSubscribers = [];
         }
 
-        window.fetch = async function() {
+        window.fetch = async function () {
             let [resource, config] = arguments;
-            if(resource && typeof resource === 'string' && resource.startsWith(API_BASE)) {
+            if (resource && typeof resource === 'string' && resource.startsWith(API_BASE)) {
                 config = config || {};
                 config.headers = config.headers || {};
                 const token = localStorage.getItem('token');
-                if(token) {
+                if (token) {
                     config.headers['Authorization'] = `Bearer ${token}`;
                 }
             }
-            
-            const response = await originalFetch(resource, config);
-            
-            // Auto Refresh JWT Token Flow
-            if (response.status === 401 && resource !== `${API_BASE}/token/refresh/` && !resource.includes('/auth/login')) {
-                const refreshToken = localStorage.getItem('refresh');
-                if (refreshToken) {
-                    if (!isRefreshing) {
-                        isRefreshing = true;
-                        try {
-                            const refreshRes = await originalFetch(`${API_BASE}/token/refresh/`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ refresh: refreshToken })
-                            });
-                            
-                            if (refreshRes.ok) {
-                                const data = await refreshRes.json();
-                                localStorage.setItem('token', data.access);
-                                isRefreshing = false;
-                                onRefreshed(data.access);
-                                
-                                config.headers['Authorization'] = `Bearer ${data.access}`;
-                                return originalFetch(resource, config);
-                            } else {
+
+            try {
+                const response = await originalFetch(resource, config);
+
+                // Global Error Handling
+                if (!response.ok && response.status >= 500) {
+                    if (typeof showMessage === 'function') {
+                        showMessage('A server error occurred (' + response.status + '). Please try again later.', 'error');
+                    }
+                }
+
+
+                // Auto Refresh JWT Token Flow
+                if (response.status === 401 && resource !== `${API_BASE}/token/refresh/` && !resource.includes('/auth/login')) {
+                    const refreshToken = localStorage.getItem('refresh');
+                    if (refreshToken) {
+                        if (!isRefreshing) {
+                            isRefreshing = true;
+                            try {
+                                const refreshRes = await originalFetch(`${API_BASE}/token/refresh/`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ refresh: refreshToken })
+                                });
+
+                                if (refreshRes.ok) {
+                                    const data = await refreshRes.json();
+                                    localStorage.setItem('token', data.access);
+                                    isRefreshing = false;
+                                    onRefreshed(data.access);
+
+                                    config.headers['Authorization'] = `Bearer ${data.access}`;
+                                    return originalFetch(resource, config);
+                                } else {
+                                    localStorage.clear();
+                                    window.location.href = 'index.html';
+                                    throw new Error('Session expired');
+                                }
+                            } catch (err) {
                                 localStorage.clear();
                                 window.location.href = 'index.html';
-                                throw new Error('Session expired');
+                                throw err;
                             }
-                        } catch (err) {
-                            localStorage.clear();
-                            window.location.href = 'index.html';
-                            throw err;
+                        } else {
+                            // Queue this request while token refreshes
+                            return new Promise(resolve => {
+                                refreshSubscribers.push(token => {
+                                    config.headers['Authorization'] = `Bearer ${token}`;
+                                    resolve(originalFetch(resource, config));
+                                });
+                            });
                         }
                     } else {
-                        // Queue this request while token refreshes
-                        return new Promise(resolve => {
-                            refreshSubscribers.push(token => {
-                                config.headers['Authorization'] = `Bearer ${token}`;
-                                resolve(originalFetch(resource, config));
-                            });
-                        });
+                        localStorage.clear();
+                        window.location.href = 'index.html';
                     }
-                } else {
-                    localStorage.clear();
-                    window.location.href = 'index.html';
                 }
+                return response;
+            } catch (error) {
+                if (typeof showMessage === 'function') {
+                    showMessage('A network error occurred. Please check your connection.', 'error');
+                }
+                throw error;
             }
-            return response;
         };
         let currentUser = null;
         let refreshInterval = null;
         let currentAction = null;
         let currentSubtaskId = null;
         let currentTaskTitle = null;
-        
+
         // Track seen tasks to avoid duplicate notifications
         let lastAssignedSubtaskIds = new Set();
         let lastAvailableTaskIds = new Set();
@@ -408,7 +531,7 @@
         document.body.appendChild(notifContainer);
 
         // ===== INITIALIZATION =====
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const userData = localStorage.getItem('user');
             if (!userData) {
                 window.location.href = 'index.html';
@@ -416,15 +539,15 @@
             }
 
             currentUser = JSON.parse(userData);
-            
+
             // For member dashboard - check if user is actually a member and approved
-            if (window.location.pathname.includes('/member-dashboard') && 
+            if (window.location.pathname.includes('/member-dashboard') &&
                 (currentUser.role.toLowerCase() !== 'member' || currentUser.status.toLowerCase() !== 'approved')) {
                 localStorage.removeItem('user');
                 window.location.href = 'index.html';
                 return;
             }
-            
+
             initializeDashboard();
             loadMemberData();
             startAutoRefresh();
@@ -436,14 +559,14 @@
 
             // Navigation event listeners
             document.querySelectorAll('.nav-links li').forEach(item => {
-                item.addEventListener('click', function() {
+                item.addEventListener('click', function () {
                     const tabId = this.getAttribute('data-tab');
                     showTab(tabId);
                 });
             });
 
             // Logout with confirmation
-            document.getElementById('logoutBtn').addEventListener('click', function() {
+            document.getElementById('logoutBtn').addEventListener('click', function () {
                 showConfirmation(
                     'Confirm Logout',
                     'Are you sure you want to logout?',
@@ -452,12 +575,12 @@
             });
 
             // Confirmation modal handlers
-            document.getElementById('confirmCancel').addEventListener('click', function() {
+            document.getElementById('confirmCancel').addEventListener('click', function () {
                 closeModal('confirmationModal');
                 resetConfirmation();
             });
 
-            document.getElementById('confirmAction').addEventListener('click', function() {
+            document.getElementById('confirmAction').addEventListener('click', function () {
                 handleConfirmedAction();
             });
         }
@@ -471,7 +594,7 @@
             document.querySelectorAll('.nav-links li').forEach(li => {
                 li.classList.remove('active');
             });
-            
+
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
@@ -482,9 +605,9 @@
             } else if (tabId === 'completed-tasks') {
                 document.getElementById('completedTasksBadge').style.display = 'none';
             }
-            
+
             // Load specific data for tabs
-            switch(tabId) {
+            switch (tabId) {
                 case 'new-tasks':
                     loadNewTasks();
                     break;
@@ -507,14 +630,14 @@
         function startAutoRefresh() {
             // Refresh data every 3 seconds for real-time updates
             refreshInterval = setInterval(loadMemberData, 3000);
-            
+
             // Also refresh the current tab every 3 seconds
             setInterval(() => {
-                const activeTab = document.querySelector('.tab-content[style="display: block"]') || 
-                                document.querySelector('.tab-content.active');
+                const activeTab = document.querySelector('.tab-content[style="display: block"]') ||
+                    document.querySelector('.tab-content.active');
                 if (activeTab) {
                     const tabId = activeTab.id;
-                    switch(tabId) {
+                    switch (tabId) {
                         case 'new-tasks':
                             loadNewTasks();
                             break;
@@ -541,10 +664,10 @@
                 // Load overview data with timeout
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
-                
+
                 const [myTasksResponse, teamTasksResponse] = await Promise.all([
-                    fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`, { signal: controller.signal }),
-                    fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`, { signal: controller.signal })
+                    fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`, { signal: controller.signal }),
+                    fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`, { signal: controller.signal })
                 ]);
 
                 clearTimeout(timeoutId);
@@ -555,7 +678,7 @@
 
                 const myTasksData = await myTasksResponse.json();
                 const teamTasksData = await teamTasksResponse.json();
-                
+
                 const myTasks = myTasksData.results || myTasksData;
                 const teamTasks = teamTasksData.results || teamTasksData;
 
@@ -567,9 +690,9 @@
                 updateOverviewStats(myTasks, availableTasksCount);
                 displayDueSoonTasks(myTasks);
                 displayRecentTasks(myTasks);
-                
+
                 isInitialLoad = false;
-                
+
             } catch (error) {
                 console.error('Error loading member data:', error);
                 if (error.name === 'AbortError') {
@@ -638,9 +761,9 @@
         function showTaskNotification(title, message, type = 'assigned') {
             const notif = document.createElement('div');
             notif.className = `task-notification ${type}`;
-            
+
             const icon = type === 'assigned' ? '📋' : '🆕';
-            
+
             notif.innerHTML = `
                 <div class="notif-icon">${icon}</div>
                 <div class="notif-content">
@@ -648,14 +771,14 @@
                     <span class="notif-msg">${message}</span>
                 </div>
             `;
-            
+
             notif.onclick = () => {
                 notif.classList.add('closing');
                 setTimeout(() => notif.remove(), 500);
             };
-            
+
             notifContainer.appendChild(notif);
-            
+
             // Auto-remove after 8 seconds
             setTimeout(() => {
                 if (notif.parentElement) {
@@ -669,8 +792,8 @@
             let count = 0;
             teamTasks.forEach(task => {
                 if (task.subtasks) {
-                    count += task.subtasks.filter(subtask => 
-                        subtask.status === 'available' || 
+                    count += task.subtasks.filter(subtask =>
+                        subtask.status === 'available' ||
                         (subtask.assigned_to === currentUser.id && getCorrectProgress(subtask.progress) === 'not_started')
                     ).length;
                 }
@@ -680,8 +803,8 @@
 
         function updateOverviewStats(myTasks, availableTasksCount) {
             const totalAssigned = myTasks.length;
-            const inProgressCount = myTasks.filter(task => 
-                getCorrectProgress(task.progress) === 'in_progress' || 
+            const inProgressCount = myTasks.filter(task =>
+                getCorrectProgress(task.progress) === 'in_progress' ||
                 getCorrectProgress(task.progress) === 'testing'
             ).length;
             const completedCount = myTasks.filter(task => getCorrectProgress(task.progress) === 'completed').length;
@@ -694,18 +817,18 @@
 
         function displayDueSoonTasks(tasks) {
             const container = document.getElementById('dueSoonTasks');
-            
+
             // Filter: deadline <= now + 3 days, status != completed
             const now = new Date();
             const threeDaysFromNow = new Date();
             threeDaysFromNow.setDate(now.getDate() + 3);
-            
+
             const dueSoon = tasks.filter(task => {
                 if (!task.deadline || getCorrectProgress(task.progress) === 'completed') return false;
                 const deadline = new Date(task.deadline);
                 return deadline <= threeDaysFromNow && deadline >= now;
             }).sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-            
+
             if (dueSoon.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -719,16 +842,19 @@
 
             container.innerHTML = dueSoon.map(task => {
                 const displayProgress = getCorrectProgress(task.progress);
-                const daysLeft = Math.ceil((new Date(task.deadline) - now) / (1000 * 60 * 60 * 24));
-                
+                const now = new Date();
+                const deadlineDate = new Date(task.deadline);
+                const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+                const countdown = getCountdown(task.deadline);
+
                 return `
                     <div class="task-card" style="border-left: 4px solid ${daysLeft <= 1 ? '#dc3545' : '#ffc107'}">
                         <div class="task-header">
                             <div>
-                                <div class="task-title">${task.task_title || task.title}</div>
+                                <div class="task-title">${task.task_title || task.title} ${countdown ? `(${countdown})` : ''}</div>
                                 <div class="task-description">${task.title}</div>
-                                <div style="font-size: 0.8rem; color: #dc3545; margin-top: 5px;">
-                                    ⏱️ Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} (${new Date(task.deadline).toLocaleDateString()})
+                                <div style="font-size: 0.8rem; color: ${daysLeft <= 1 ? '#dc3545' : '#666'}; margin-top: 5px;">
+                                    ⏱️ Due: ${deadlineDate.toLocaleString()}
                                 </div>
                             </div>
                             <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
@@ -748,7 +874,7 @@
         function displayRecentTasks(tasks) {
             const container = document.getElementById('recentTasks');
             const recentTasks = tasks.slice(0, 3); // Show only 3 recent tasks
-            
+
             if (recentTasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -762,7 +888,7 @@
 
             container.innerHTML = recentTasks.map(task => {
                 const displayProgress = getCorrectProgress(task.progress);
-                
+
                 return `
                     <div class="task-card">
                         <div class="task-header">
@@ -788,8 +914,8 @@
         async function loadNewTasks() {
             try {
                 // Fetch all team tasks with their subtasks
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
-                
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch tasks');
                 }
@@ -800,7 +926,7 @@
             } catch (error) {
                 console.error('Error loading new tasks:', error);
                 showMessage('Failed to load available tasks', 'error');
-                
+
                 const container = document.getElementById('newTasksList');
                 container.innerHTML = `
                     <div class="empty-state">
@@ -817,15 +943,15 @@
 
         function displayNewTasks(tasks) {
             const container = document.getElementById('newTasksList');
-            
+
             // Filter tasks that have available subtasks
-            const tasksWithAvailableSubtasks = tasks.filter(task => 
-                task.subtasks && task.subtasks.some(subtask => 
-                    subtask.status === 'available' || 
+            const tasksWithAvailableSubtasks = tasks.filter(task =>
+                task.subtasks && task.subtasks.some(subtask =>
+                    subtask.status === 'available' ||
                     (subtask.assigned_to === currentUser.id && getCorrectProgress(subtask.progress) === 'not_started')
                 )
             );
-            
+
             if (tasksWithAvailableSubtasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -839,16 +965,16 @@
 
             container.innerHTML = tasksWithAvailableSubtasks.map(task => {
                 // Filter available subtasks for this task
-                const availableSubtasks = task.subtasks.filter(subtask => 
-                    subtask.status === 'available' || 
+                const availableSubtasks = task.subtasks.filter(subtask =>
+                    subtask.status === 'available' ||
                     (subtask.assigned_to === currentUser.id && getCorrectProgress(subtask.progress) === 'not_started')
                 );
-                
+
                 if (availableSubtasks.length === 0) return '';
-                
+
                 const progress = calculateTaskProgress(task);
                 const overallStatus = getOverallStatus(task);
-                
+
                 return `
                     <div class="task-card">
                         <div class="task-header">
@@ -888,23 +1014,27 @@
                             <strong>Available Subtasks:</strong>
                             <div class="subtask-list">
                                 ${availableSubtasks.map(subtask => {
-                                    const displayProgress = getCorrectProgress(subtask.progress);
-                                    const isAssignedToMe = subtask.assigned_to === currentUser.id;
-                                    
-                                    let assignmentInfo = '';
-                                    if (subtask.assigned_to_name) {
-                                        assignmentInfo = `👤 ${subtask.assigned_to_name}`;
-                                        if (isAssignedToMe) {
-                                            assignmentInfo += ' (You)';
-                                        }
-                                    } else {
-                                        assignmentInfo = '🆕 Available';
-                                    }
+                    const displayProgress = getCorrectProgress(subtask.progress);
+                    const isAssignedToMe = subtask.assigned_to === currentUser.id;
 
-                                    return `
+                    let assignmentInfo = '';
+                    if (subtask.assigned_to_name) {
+                        assignmentInfo = `👤 ${subtask.assigned_to_name}`;
+                        if (isAssignedToMe) {
+                            assignmentInfo += ' (You)';
+                        }
+                    } else {
+                        assignmentInfo = '🆕 Available';
+                    }
+                    const deadline = subtask.deadline 
+                        ? new Date(subtask.deadline).toLocaleString() 
+                        : 'No deadline';
+                    const countdown = getCountdown(subtask.deadline);
+                    
+                    return `
                                         <div class="subtask-item">
                                             <div class="subtask-info">
-                                                <div class="subtask-title">${subtask.title || 'Untitled Subtask'}</div>
+                                                <div class="subtask-title">${subtask.title || 'Untitled Subtask'} ${countdown ? `(${countdown})` : ''}</div>
                                                 <div class="subtask-description">${subtask.description || 'No description'}</div>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -919,7 +1049,7 @@
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+                }).join('')}
                             </div>
                         </div>
                     </div>
@@ -930,8 +1060,8 @@
         // ===== ASSIGNED TASKS TAB FUNCTIONS =====
         async function loadAssignedTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
-                
+                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch assigned tasks');
                 }
@@ -942,7 +1072,7 @@
             } catch (error) {
                 console.error('Error loading assigned tasks:', error);
                 showMessage('Failed to load assigned tasks', 'error');
-                
+
                 const container = document.getElementById('assignedTasksList');
                 container.innerHTML = `
                     <div class="empty-state">
@@ -959,7 +1089,7 @@
 
         function displayAssignedTasks(tasks) {
             const container = document.getElementById('assignedTasksList');
-            
+
             if (tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -993,11 +1123,11 @@
                         
                         <div class="subtask-list">
                             ${subtasks.map(subtask => {
-                                const displayProgress = getCorrectProgress(subtask.progress);
-                                return `
+                    const displayProgress = getCorrectProgress(subtask.progress);
+                    return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
-                                            <div class="subtask-title">${subtask.title}</div>
+                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline) || ''}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1009,7 +1139,7 @@
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
                 `;
@@ -1025,18 +1155,18 @@
         // ===== ACTIVE TASKS TAB FUNCTIONS =====
         async function loadActiveTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
-                
+                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch tasks');
                 }
 
                 let data = await response.json();
                 let tasks = data.results || data;
-                
+
                 // Filter for active tasks (in_progress or testing)
-                const activeTasks = tasks.filter(task => 
-                    getCorrectProgress(task.progress) === 'in_progress' || 
+                const activeTasks = tasks.filter(task =>
+                    getCorrectProgress(task.progress) === 'in_progress' ||
                     getCorrectProgress(task.progress) === 'testing'
                 );
 
@@ -1044,7 +1174,7 @@
             } catch (error) {
                 console.error('Error loading active tasks:', error);
                 showMessage('Failed to load active tasks', 'error');
-                
+
                 const container = document.getElementById('activeTasksList');
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1061,7 +1191,7 @@
 
         function displayActiveTasks(tasks) {
             const container = document.getElementById('activeTasksList');
-            
+
             if (tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1095,11 +1225,11 @@
                         
                         <div class="subtask-list">
                             ${subtasks.map(subtask => {
-                                const displayProgress = getCorrectProgress(subtask.progress);
-                                return `
+                    const displayProgress = getCorrectProgress(subtask.progress);
+                    return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
-                                            <div class="subtask-title">${subtask.title}</div>
+                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline) || ''}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1111,7 +1241,7 @@
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
                 `;
@@ -1121,8 +1251,8 @@
         // ===== COMPLETED TASKS TAB FUNCTIONS =====
         async function loadCompletedTasks() {
             try {
-                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
-                
+                const response = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch tasks');
                 }
@@ -1135,7 +1265,7 @@
             } catch (error) {
                 console.error('Error loading completed tasks:', error);
                 showMessage('Failed to load completed tasks', 'error');
-                
+
                 const container = document.getElementById('completedTasksList');
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1152,7 +1282,7 @@
 
         function displayCompletedTasks(tasks) {
             const container = document.getElementById('completedTasksList');
-            
+
             if (tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1204,23 +1334,23 @@
         async function loadTeamTasks() {
             try {
                 console.log('Loading team tasks for team:', currentUser.team_code);
-                
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}`);
-                
+
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 const tasks = data.results || data;
                 console.log('Team tasks response:', tasks);
-                
+
                 displayTeamTasks(tasks);
-                
+
             } catch (error) {
                 console.error('Error loading team tasks:', error);
                 showMessage('Failed to load team tasks: ' + error.message, 'error');
-                
+
                 const container = document.getElementById('teamTasksList');
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1238,7 +1368,7 @@
 
         function displayTeamTasks(tasks) {
             const container = document.getElementById('teamTasksList');
-            
+
             if (!tasks || tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1254,7 +1384,7 @@
             container.innerHTML = tasks.map(task => {
                 const progress = calculateTaskProgress(task);
                 const overallStatus = getOverallStatus(task);
-                
+
                 return `
                     <div class="task-card">
                         <div class="task-header">
@@ -1295,20 +1425,20 @@
                             <strong>Subtasks:</strong>
                             <div class="subtask-list">
                                 ${task.subtasks.map(subtask => {
-                                    const displayProgress = getCorrectProgress(subtask.progress);
-                                    const isAssignedToMe = subtask.assigned_to === currentUser.id;
-                                    
-                                    let assignmentInfo = '';
-                                    if (subtask.assigned_to_name) {
-                                        assignmentInfo = `👤 ${subtask.assigned_to_name}`;
-                                        if (isAssignedToMe) {
-                                            assignmentInfo += ' (You)';
-                                        }
-                                    } else {
-                                        assignmentInfo = '🆕 Not assigned';
-                                    }
+                    const displayProgress = getCorrectProgress(subtask.progress);
+                    const isAssignedToMe = subtask.assigned_to === currentUser.id;
 
-                                    return `
+                    let assignmentInfo = '';
+                    if (subtask.assigned_to_name) {
+                        assignmentInfo = `👤 ${subtask.assigned_to_name}`;
+                        if (isAssignedToMe) {
+                            assignmentInfo += ' (You)';
+                        }
+                    } else {
+                        assignmentInfo = '🆕 Not assigned';
+                    }
+
+                    return `
                                         <div class="subtask-item">
                                             <div class="subtask-info">
                                                 <div class="subtask-title">${subtask.title || 'Untitled Subtask'}</div>
@@ -1326,7 +1456,7 @@
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+                }).join('')}
                             </div>
                         </div>
                         ` : '<p style="color: #666; text-align: center; padding: 20px;">No subtasks available for this task.</p>'}
@@ -1343,13 +1473,13 @@
 
         function getOverallStatus(task) {
             if (!task.subtasks || task.subtasks.length === 0) return 'available';
-            
+
             const allCompleted = task.subtasks.every(st => getCorrectProgress(st.progress) === 'completed');
-            const someInProgress = task.subtasks.some(st => 
-                getCorrectProgress(st.progress) === 'in_progress' || 
+            const someInProgress = task.subtasks.some(st =>
+                getCorrectProgress(st.progress) === 'in_progress' ||
                 getCorrectProgress(st.progress) === 'testing'
             );
-            const someAssigned = task.subtasks.some(st => 
+            const someAssigned = task.subtasks.some(st =>
                 st.assigned_to !== null && getCorrectProgress(st.progress) !== 'completed'
             );
             const someAvailable = task.subtasks.some(st => st.status === 'available');
@@ -1358,7 +1488,7 @@
             if (someInProgress) return 'in_progress';
             if (someAssigned) return 'assigned';
             if (someAvailable) return 'available';
-            
+
             return 'available';
         }
 
@@ -1367,25 +1497,25 @@
             const displayProgress = getCorrectProgress(progress);
             const isAssignedToMe = assignedTo === currentUser.id;
             const isAvailable = status === 'available';
-            
+
             // If task is completed, show completed badge
             if (displayProgress === 'completed') {
                 return `<span class="status-badge status-completed">COMPLETED</span>`;
             }
-            
+
             // If task is assigned to someone else and not available
             if (assignedTo && !isAssignedToMe && !isAvailable) {
                 return `<span class="status-badge status-assigned">ASSIGNED TO OTHER</span>`;
             }
-            
+
             // If task is available for taking
             if (isAvailable && !assignedTo) {
                 return `<button class="btn btn-primary btn-sm" onclick="confirmTakeTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Take Task</button>`;
             }
-            
+
             // If task is assigned to me
             if (isAssignedToMe) {
-                switch(displayProgress) {
+                switch (displayProgress) {
                     case 'not_started':
                     case 'assigned':
                         return `<button class="btn btn-warning btn-sm" onclick="confirmStartTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Start Task</button>`;
@@ -1396,7 +1526,7 @@
                         return `<button class="btn btn-warning btn-sm" onclick="confirmStartTask('${subtaskId}', '${escapeHtml(taskTitle)}')">Start Task</button>`;
                 }
             }
-            
+
             // Default fallback
             return `<span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>`;
         }
@@ -1441,7 +1571,7 @@
         }
 
         function handleConfirmedAction() {
-            switch(currentAction) {
+            switch (currentAction) {
                 case 'take_task':
                     takeSubtask(currentSubtaskId);
                     break;
@@ -1467,7 +1597,7 @@
 
         async function takeSubtask(subtaskId) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/take`, {
+                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/take/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1479,7 +1609,7 @@
 
                 if (response.ok) {
                     showMessage('Task assigned to you successfully! You can now start working on it.', 'success');
-                    
+
                     // Force immediate refresh of all tabs
                     await forceRefreshAllTabs();
                 } else {
@@ -1495,7 +1625,7 @@
             try {
                 await updateTaskProgress(subtaskId, 'in_progress');
                 showMessage('Task started successfully! Status: In Progress', 'success');
-                
+
                 // Force immediate refresh
                 await forceRefreshAllTabs();
             } catch (error) {
@@ -1508,7 +1638,7 @@
             try {
                 await updateTaskProgress(subtaskId, 'completed');
                 showMessage('Task completed successfully!', 'success');
-                
+
                 // Force immediate refresh
                 await forceRefreshAllTabs();
             } catch (error) {
@@ -1519,7 +1649,7 @@
 
         async function updateTaskProgress(subtaskId, progress) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/progress`, {
+                const response = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/progress/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1533,7 +1663,7 @@
                 if (!response.ok) {
                     throw new Error(result.error || 'Failed to update progress');
                 }
-                
+
                 return result;
             } catch (error) {
                 console.error('Error updating progress:', error);
@@ -1547,7 +1677,7 @@
                 // First try to get subtask details from the subtask endpoint
                 let subtask;
                 try {
-                    const subtaskResponse = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}`);
+                    const subtaskResponse = await fetch(`${API_BASE}/tasks/subtask/${subtaskId}/`);
                     if (subtaskResponse.ok) {
                         subtask = await subtaskResponse.json();
                     } else {
@@ -1555,11 +1685,11 @@
                     }
                 } catch (error) {
                     // If subtask endpoint fails, get it from user's subtasks
-                    const userTasksResponse = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks`);
+                    const userTasksResponse = await fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`);
                     const userTasksData = await userTasksResponse.json();
                     const userTasks = userTasksData.results || userTasksData;
                     subtask = userTasks.find(task => task.id == subtaskId);
-                    
+
                     if (!subtask) {
                         throw new Error('Task not found');
                     }
@@ -1629,16 +1759,16 @@
         // ===== UTILITY FUNCTIONS =====
         function getCorrectProgress(progress) {
             if (!progress) return 'not_started';
-            
+
             const progressMap = {
                 'assigned': 'not_started',
-                'taken': 'not_started', 
+                'taken': 'not_started',
                 'not_started': 'not_started',
                 'in_progress': 'in_progress',
                 'testing': 'testing',
                 'completed': 'completed'
             };
-            
+
             return progressMap[progress] || 'not_started';
         }
 
@@ -1667,7 +1797,7 @@
             try {
                 // Refresh overview data
                 await loadMemberData();
-                
+
                 // Refresh all specific tabs
                 await Promise.all([
                     loadNewTasks(),
@@ -1676,7 +1806,7 @@
                     loadCompletedTasks(),
                     loadTeamTasks()
                 ]);
-                
+
                 console.log('All tabs refreshed successfully');
             } catch (error) {
                 console.error('Error refreshing tabs:', error);
@@ -1712,18 +1842,19 @@
         }
 
         // ===== EVENT LISTENERS =====
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
                 resetConfirmation();
             }
         }
 
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function () {
             if (refreshInterval) {
                 clearInterval(refreshInterval);
             }
         });
     </script>
 </body>
+
 </html>
