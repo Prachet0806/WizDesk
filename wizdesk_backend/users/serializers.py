@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Team
+from .models import User, Team, TeamTransferRequest
 
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,3 +40,24 @@ class MemberRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['email', 'password', 'name', 'team_code']
+
+class TeamTransferRequestSerializer(serializers.ModelSerializer):
+    member_name = serializers.CharField(source='member.name', read_only=True)
+    member_email = serializers.CharField(source='member.email', read_only=True)
+    current_team_name = serializers.CharField(source='current_team.name', read_only=True)
+    future_team_name = serializers.CharField(source='future_team.name', read_only=True)
+    future_team_code = serializers.CharField(source='future_team.code', read_only=True)
+
+    class Meta:
+        model = TeamTransferRequest
+        fields = [
+            'id', 'member', 'member_name', 'member_email',
+            'current_team', 'current_team_name',
+            'future_team', 'future_team_name', 'future_team_code',
+            'status', 'current_lead_approved_at', 'future_lead_approved_at',
+            'rejected_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'status', 'current_lead_approved_at', 
+            'future_lead_approved_at', 'rejected_at', 'created_at', 'updated_at'
+        ]

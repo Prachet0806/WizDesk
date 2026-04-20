@@ -11,6 +11,12 @@
     --success-bg: rgba(40, 167, 69, 0.05);
     --warning-bg: rgba(255, 193, 7, 0.05);
     --danger-bg: rgba(220, 53, 69, 0.05);
+    --priority-high: #e74c3c;
+    --priority-medium: #f39c12;
+    --priority-low: #3498db;
+    --priority-high-bg: rgba(231, 76, 60, 0.1);
+    --priority-medium-bg: rgba(243, 156, 18, 0.1);
+    --priority-low-bg: rgba(52, 152, 219, 0.1);
 }
 
 .dark-theme {
@@ -26,6 +32,12 @@
     --success-bg: rgba(40, 167, 69, 0.15);
     --warning-bg: rgba(255, 193, 7, 0.15);
     --danger-bg: rgba(220, 53, 69, 0.15);
+    --priority-high: #ff6b6b;
+    --priority-medium: #ffd93d;
+    --priority-low: #6bcbff;
+    --priority-high-bg: rgba(255, 107, 107, 0.2);
+    --priority-medium-bg: rgba(255, 217, 61, 0.2);
+    --priority-low-bg: rgba(107, 203, 255, 0.2);
 }
 
 /* Reset and Base Styles */
@@ -423,6 +435,34 @@ body {
 .status-testing {
     background: #6f42c1;
     color: white;
+}
+
+/* Priority Badges */
+.priority-badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.priority-high {
+    background-color: var(--priority-high-bg);
+    color: var(--priority-high);
+    border: 1px solid var(--priority-high);
+}
+
+.priority-medium {
+    background-color: var(--priority-medium-bg);
+    color: var(--priority-medium);
+    border: 1px solid var(--priority-medium);
+}
+
+.priority-low {
+    background-color: var(--priority-low-bg);
+    color: var(--priority-low);
+    border: 1px solid var(--priority-low);
 }
 
 /* ===== EMPTY STATE STYLES ===== */

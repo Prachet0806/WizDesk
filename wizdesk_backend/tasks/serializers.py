@@ -4,12 +4,14 @@ from users.serializers import UserSerializer
 
 class SubtaskSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.SerializerMethodField()
+    task_title = serializers.CharField(source='task.title', read_only=True)
+    task_priority = serializers.CharField(source='task.priority', read_only=True)
 
     class Meta:
         model = Subtask
         fields = [
-            'id', 'task', 'title', 'description', 'assigned_to', 
-            'assigned_to_name', 'status', 'progress', 'priority', 
+            'id', 'task', 'task_title', 'task_priority', 'title', 'description', 
+            'assigned_to', 'assigned_to_name', 'status', 'progress', 'priority', 
             'deadline', 'created_at', 'updated_at', 'completed_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -25,7 +27,7 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'id', 'title', 'description', 'team', 'created_by',
-            'created_by_name', 'status', 'created_at', 'updated_at',
+            'created_by_name', 'status', 'priority', 'created_at', 'updated_at',
             'subtasks'
         ]
         read_only_fields = ['id', 'team', 'created_by', 'created_at', 'updated_at']

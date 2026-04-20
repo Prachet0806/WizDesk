@@ -155,10 +155,12 @@
                 <li data-tab="new-tasks">
                     <span class="nav-icon">🆕</span>
                     <span>New Tasks</span>
+                    <span class="yellow-dot-badge" id="newTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="assigned-tasks">
                     <span class="nav-icon">📋</span>
                     <span>My Tasks</span>
+                    <span class="yellow-dot-badge" id="assignedTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="active-tasks">
                     <span class="nav-icon">⚡</span>
@@ -173,6 +175,11 @@
                 <li data-tab="team-tasks">
                     <span class="nav-icon">👥</span>
                     <span>Team Tasks</span>
+                </li>
+                <li data-tab="team-transfer">
+                    <span class="nav-icon">🔄</span>
+                    <span>Team Transfer</span>
+                    <span class="yellow-dot-badge" id="transferBadge" style="display: none;"></span>
                 </li>
             </ul>
         </div>
@@ -336,6 +343,39 @@
                             who is working on them.</p>
                         <div id="teamTasksList" class="task-list">
                             <!-- Team tasks will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== TEAM TRANSFER TAB ===== -->
+                <div id="team-transfer" class="tab-content" style="display: none;">
+                    <div class="section">
+                        <h2>🔄 Request Team Transfer</h2>
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                            Want to move to another team? Enter the team code of your prospective team. 
+                            Your transfer will require approval from your <strong>current lead</strong> and your <strong>future lead</strong>.
+                        </p>
+                        
+                        <div class="transfer-form-card" style="max-width: 500px; background: var(--bg-primary); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color);">
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 600;">Future Team Code</label>
+                                <input type="text" id="transferTeamCode" class="search-input" placeholder="e.g. ABC123" style="text-transform: uppercase; width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg); color: var(--text-primary);">
+                            </div>
+                            <button class="btn btn-primary" onclick="requestTransfer()" id="requestTransferBtn" style="width: 100%;">
+                                Initiate Transfer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>📋 Transfer Requests Status</h2>
+                        <div id="transferRequestsList" class="task-list">
+                            <!-- Transfer requests will be loaded here -->
+                            <div class="empty-state">
+                                <div class="icon">📜</div>
+                                <h3>No transfer history</h3>
+                                <p>Your team transfer requests will appear here</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -542,6 +582,7 @@
         let lastAvailableTaskIds = new Set();
         let lastActiveTaskIds = new Set();
         let lastCompletedTaskIds = new Set();
+        let lastTransferRequests = [];
         let isInitialLoad = true;
 
         // Create notification container
@@ -574,6 +615,44 @@
                 localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
             }
             updateNotifUI();
+            updateYellowDots();
+        }
+
+        function updateYellowDots() {
+            const transferBadge = document.getElementById('transferBadge');
+            const assignedBadge = document.getElementById('assignedTasksBadge');
+            const newTasksBadge = document.getElementById('newTasksBadge');
+            const notifBadge = document.getElementById('notifBadge');
+            
+            const unreadNotifs = notifications.filter(n => !n.read);
+            
+            // Bell Badge (Global)
+            if (notifBadge) {
+                if (unreadNotifs.length > 0) {
+                    notifBadge.textContent = unreadNotifs.length;
+                    notifBadge.style.display = 'flex';
+                } else {
+                    notifBadge.style.display = 'none';
+                }
+            }
+
+            // Transfer Tab Dot
+            if (transferBadge) {
+                const hasUnreadTransfer = unreadNotifs.some(n => n.type === 'transfer');
+                transferBadge.style.display = hasUnreadTransfer ? 'inline-block' : 'none';
+            }
+
+            // Assigned Tasks Tab Dot
+            if (assignedBadge) {
+                const hasUnreadAssigned = unreadNotifs.some(n => n.type === 'assigned');
+                assignedBadge.style.display = hasUnreadAssigned ? 'inline-block' : 'none';
+            }
+
+            // New Tasks Tab Dot
+            if (newTasksBadge) {
+                const hasUnreadAvailable = unreadNotifs.some(n => n.type === 'available');
+                newTasksBadge.style.display = hasUnreadAvailable ? 'inline-block' : 'none';
+            }
         }
 
         function updateNotifUI() {
@@ -640,6 +719,7 @@
                     localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
                 }
                 updateNotifUI();
+                updateYellowDots();
             }
         }
 
@@ -650,6 +730,7 @@
                 localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
             }
             updateNotifUI();
+            updateYellowDots();
         }
 
         // Close dropdown when clicking outside
@@ -756,6 +837,9 @@
                 case 'team-tasks':
                     loadTeamTasks();
                     break;
+                case 'team-transfer':
+                    loadTransferRequests();
+                    break;
             }
         }
 
@@ -788,7 +872,7 @@
                             break;
                     }
                 }
-            }, 20000);
+            }, 5000);
         }
 
         // ===== OVERVIEW TAB FUNCTIONS =====
@@ -802,6 +886,9 @@
                     fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`, { signal: controller.signal }),
                     fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`, { signal: controller.signal })
                 ]);
+                
+                // Also load transfer requests for notifications
+                await loadTransferRequests();
 
                 clearTimeout(timeoutId);
 
@@ -1115,7 +1202,10 @@
                                 <div class="task-title">${task.title || 'Untitled Task'}</div>
                                 <div class="task-description">${task.description || 'No description provided'}</div>
                             </div>
-                            <span class="status-badge status-${overallStatus}">${overallStatus.toUpperCase().replace('_', ' ')}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
+                                <span class="status-badge status-${overallStatus}">${overallStatus.toUpperCase().replace('_', ' ')}</span>
+                            </div>
                         </div>
                         
                         <div class="task-meta">
@@ -1167,7 +1257,11 @@
                     return `
                                         <div class="subtask-item">
                                             <div class="subtask-info">
-                                                <div class="subtask-title">${subtask.title || 'Untitled Subtask'} ${getCountdown(subtask.deadline, displayProgress) || ''}</div>
+                                                <div class="subtask-title">
+                                                    ${subtask.title || 'Untitled Subtask'} 
+                                                    <span class="priority-badge priority-${subtask.priority || 'medium'}" style="font-size: 0.65rem; padding: 2px 6px;">${subtask.priority || 'medium'}</span>
+                                                    ${getCountdown(subtask.deadline, displayProgress) || ''}
+                                                </div>
                                                 <div class="subtask-description">${subtask.description || 'No description'}</div>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -1250,7 +1344,10 @@
                                 <div class="task-title">${mainTask}</div>
                                 <div class="task-description">${subtasks[0].task_description || 'No description'}</div>
                             </div>
-                            <span class="status-badge status-${getOverallProgress(subtasks)}">${getOverallProgress(subtasks).toUpperCase()}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                                <span class="priority-badge priority-${subtasks[0].task_priority || 'medium'}">${subtasks[0].task_priority || 'medium'}</span>
+                                <span class="status-badge status-${getOverallProgress(subtasks)}">${getOverallProgress(subtasks).toUpperCase()}</span>
+                            </div>
                         </div>
                         
                         <div class="subtask-list">
@@ -1846,9 +1943,10 @@
                     </div>
                     
                     <div class="task-detail-item">
-                        <span class="task-detail-label">Status</span>
-                        <div class="task-detail-value">
+                        <span class="task-detail-label">Status & Priority</span>
+                        <div class="task-detail-value" style="display: flex; gap: 10px;">
                             <span class="status-badge status-${subtask.status}">${getStatusDisplay(subtask.status)}</span>
+                            <span class="priority-badge priority-${subtask.priority || 'medium'}">${(subtask.priority || 'medium').toUpperCase()}</span>
                         </div>
                     </div>
                     
@@ -1993,6 +2091,129 @@
                 clearInterval(refreshInterval);
             }
         });
+        // ===== TEAM TRANSFER FUNCTIONS =====
+        async function requestTransfer() {
+            const teamCode = document.getElementById('transferTeamCode').value.trim().toUpperCase();
+            if (!teamCode) {
+                showMessage('Please enter a team code', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('requestTransferBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/transfer/request/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ future_team_code: teamCode })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage('Transfer request initiated successfully!', 'success');
+                    document.getElementById('transferTeamCode').value = '';
+                    loadTransferRequests();
+                } else {
+                    showMessage(result.error || 'Failed to initiate transfer', 'error');
+                }
+            } catch (error) {
+                console.error('Error requesting transfer:', error);
+                showMessage('An error occurred. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Initiate Transfer';
+            }
+        }
+
+        async function loadTransferRequests() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/transfer/pending/`);
+                if (!response.ok) throw new Error('Failed to fetch transfers');
+                const data = await response.json();
+                
+                // Check for status changes in existing requests
+                if (!isInitialLoad && lastTransferRequests.length > 0) {
+                    data.forEach(req => {
+                        const lastReq = lastTransferRequests.find(lr => lr.id === req.id);
+                        if (lastReq && lastReq.status !== req.status) {
+                            const title = '🔄 Team Transfer Update';
+                            const msg = `Your transfer to ${req.future_team_name} is now: ${req.status.replace('_', ' ')}`;
+                            showTaskNotification(title, msg, 'transfer');
+                        }
+                    });
+                }
+                
+                lastTransferRequests = data;
+                displayTransferRequests(data);
+                updateYellowDots();
+            } catch (error) {
+                console.error('Error loading transfers:', error);
+            }
+        }
+
+        function displayTransferRequests(requests) {
+            const container = document.getElementById('transferRequestsList');
+            if (requests.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📜</div>
+                        <h3>No transfer history</h3>
+                        <p>Your team transfer requests will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = requests.map(req => {
+                let statusClass = '';
+                let statusText = '';
+                
+                switch(req.status) {
+                    case 'PENDING_CURRENT': 
+                        statusClass = 'status-assigned'; 
+                        statusText = 'WAITING FOR CURRENT LEAD'; 
+                        break;
+                    case 'PENDING_FUTURE': 
+                        statusClass = 'status-in-progress'; 
+                        statusText = 'WAITING FOR FUTURE LEAD'; 
+                        break;
+                    case 'APPROVED': 
+                        statusClass = 'status-available'; 
+                        statusText = 'APPROVED'; 
+                        break;
+                    case 'REJECTED': 
+                        statusClass = 'status-completed'; 
+                        statusText = 'REJECTED'; 
+                        break;
+                }
+
+                return `
+                    <div class="task-card">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">Transfer to ${req.future_team_name} (${req.future_team_code})</div>
+                                <div class="task-description">From ${req.current_team_name}</div>
+                            </div>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="task-meta">
+                            <div class="meta-item">
+                                <span>📅</span>
+                                <span>Requested: ${new Date(req.created_at).toLocaleString()}</span>
+                            </div>
+                            ${req.current_lead_approved_at ? `
+                            <div class="meta-item">
+                                <span>✅</span>
+                                <span>Current Lead Approved: ${new Date(req.current_lead_approved_at).toLocaleString()}</span>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
     </script>
 </body>
 

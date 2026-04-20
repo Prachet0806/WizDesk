@@ -8,8 +8,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.db.models import Count, Q
-from .models import User, Team
-from .serializers import UserSerializer
+from .models import User, Team, TeamTransferRequest
+from .serializers import UserSerializer, TeamTransferRequestSerializer
 
 class IsTeamLeader(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -322,3 +322,99 @@ class RemoveTeamMemberView(APIView):
             return Response({'message': 'Member removed dynamically'})
         except User.DoesNotExist:
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ---------------------------------------------------------
+# TEAM TRANSFER VIEWS
+# ---------------------------------------------------------
+
+class RequestTransferView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        future_team_code = request.data.get('future_team_code')
+        try:
+            future_team = Team.objects.get(code=future_team_code)
+        except Team.DoesNotExist:
+            return Response({'error': 'Invalid future team code'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not request.user.team:
+             return Response({'error': 'You must be in a team to request a transfer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.user.team == future_team:
+            return Response({'error': 'You are already in this team.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if there's already a pending request
+        if TeamTransferRequest.objects.filter(member=request.user, status__in=[TeamTransferRequest.Status.PENDING_CURRENT, TeamTransferRequest.Status.PENDING_FUTURE]).exists():
+             return Response({'error': 'You already have a pending transfer request.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        transfer_request = TeamTransferRequest.objects.create(
+            member=request.user,
+            current_team=request.user.team,
+            future_team=future_team,
+            status=TeamTransferRequest.Status.PENDING_CURRENT
+        )
+        return Response(TeamTransferRequestSerializer(transfer_request).data, status=status.HTTP_201_CREATED)
+
+class PendingTransfersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role == User.Role.MEMBER:
+            qs = TeamTransferRequest.objects.filter(member=user).order_by('-created_at')
+        else:
+            # For leader, show outgoing (current lead) and incoming (future lead)
+            qs = TeamTransferRequest.objects.filter(
+                Q(current_team__leader=user, status=TeamTransferRequest.Status.PENDING_CURRENT) |
+                Q(future_team__leader=user, status=TeamTransferRequest.Status.PENDING_FUTURE)
+            ).order_by('-created_at')
+        
+        return Response(TeamTransferRequestSerializer(qs, many=True).data)
+
+class ProcessTransferView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
+
+    def post(self, request, pk):
+        action = request.data.get('action') # 'approve' or 'reject'
+        try:
+            transfer = TeamTransferRequest.objects.get(pk=pk)
+        except TeamTransferRequest.DoesNotExist:
+            return Response({'error': 'Transfer request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if action == 'reject':
+            transfer.status = TeamTransferRequest.Status.REJECTED
+            transfer.rejected_by = request.user
+            transfer.rejected_at = timezone.now()
+            transfer.save()
+            return Response({'message': 'Transfer rejected'})
+
+        if action == 'approve':
+            if transfer.status == TeamTransferRequest.Status.PENDING_CURRENT:
+                if transfer.current_team.leader != request.user:
+                    return Response({'error': 'You are not the leader of the current team.'}, status=status.HTTP_403_FORBIDDEN)
+                
+                transfer.status = TeamTransferRequest.Status.PENDING_FUTURE
+                transfer.current_lead_approved_at = timezone.now()
+                transfer.save()
+                return Response({'message': 'Approved by current lead. Waiting for future lead approval.'})
+
+            elif transfer.status == TeamTransferRequest.Status.PENDING_FUTURE:
+                if transfer.future_team.leader != request.user:
+                    return Response({'error': 'You are not the leader of the future team.'}, status=status.HTTP_403_FORBIDDEN)
+                
+                transfer.status = TeamTransferRequest.Status.APPROVED
+                transfer.future_lead_approved_at = timezone.now()
+                transfer.save()
+                
+                # Perform the move
+                member = transfer.member
+                member.team = transfer.future_team
+                # Unassign from current tasks
+                from tasks.models import Subtask
+                Subtask.objects.filter(assigned_to=member, status__in=[Subtask.Status.ASSIGNED, Subtask.Status.TAKEN]).update(assigned_to=None, status=Subtask.Status.AVAILABLE, progress='not_started')
+                member.save()
+                
+                return Response({'message': 'Transfer approved successfully. Member has been moved.'})
+
+        return Response({'error': 'Invalid action or state'}, status=status.HTTP_400_BAD_REQUEST)
