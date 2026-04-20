@@ -2414,7 +2414,7 @@ function showLogoutConfirmation() {
 
         function displayPerformanceData() {
             displayTopPerformers();
-            displayMembersPerformanceTable();
+            filterPerformanceData();
         }
 
         function displayTopPerformers() {
@@ -2433,7 +2433,8 @@ function showLogoutConfirmation() {
 
             // Sort members by completed tasks (descending) and take top 3
             const topPerformers = [...memberPerformanceData]
-                .sort((a, b) => b.completed_tasks - a.completed_tasks)
+                .sort((a, b) => (b.completed_tasks || 0) - (a.completed_tasks || 0))
+                .filter(m => (m.completed_tasks || 0) > 0)
                 .slice(0, 3);
 
             if (topPerformers.length === 0) {
@@ -2542,20 +2543,7 @@ function showLogoutConfirmation() {
         }
 
         function displayMembersPerformanceTable() {
-            const container = document.getElementById('membersPerformanceTable');
-            
-            if (memberPerformanceData.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">👥</div>
-                        <h3>No Team Members</h3>
-                        <p>No team members found with performance data</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = renderPerformanceTable(memberPerformanceData);
+            filterPerformanceData();
         }
 
         async function showMemberPerformanceDetails(memberId) {
