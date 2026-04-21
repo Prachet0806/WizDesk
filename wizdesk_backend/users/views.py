@@ -1,6 +1,7 @@
 import base64
 import random
 import string
+import re
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -30,6 +31,12 @@ class SendLeaderVerificationView(APIView):
 
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not email or not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            return Response({'error': 'Invalid email address'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not name or not re.match(r'^[A-Za-z][A-Za-z\s]*$', name):
+            return Response({'error': 'Name must start with a letter and contain only letters and spaces'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Create unverified user
         try:
@@ -97,6 +104,13 @@ class SendMemberVerificationView(APIView):
 
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validation
+        if not email or not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            return Response({'error': 'Invalid email address'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not name or not re.match(r'^[A-Za-z][A-Za-z\s]*$', name):
+            return Response({'error': 'Name must start with a letter and contain only letters and spaces'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             team = Team.objects.get(code=team_code)
