@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Team
+from .models import User, Team, TeamTransferRequest
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
@@ -18,3 +18,9 @@ class CustomUserAdmin(UserAdmin):
 class TeamAdmin(admin.ModelAdmin):
     list_display = ('name', 'code', 'leader', 'created_at')
     search_fields = ('name', 'code', 'leader__email')
+
+@admin.register(TeamTransferRequest)
+class TeamTransferRequestAdmin(admin.ModelAdmin):
+    list_display = ('member', 'current_team', 'future_team', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('member__email', 'current_team__name', 'future_team__name')
