@@ -385,6 +385,23 @@
 
     <!-- ===== MODALS ===== -->
 
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="closeModal('confirmModal')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px 0;">
+                <p id="confirmMessage" style="font-size: 1.1rem; color: var(--text-primary);">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('confirmModal')" style="flex: 1;">Cancel</button>
+                <button id="confirmProceedBtn" class="btn btn-primary" style="flex: 1;">Proceed</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Details Modal -->
     <div id="taskDetailsModal" class="modal">
         <div class="modal-content">
@@ -636,22 +653,27 @@
                 }
             }
 
+            // Check tab visibility
+            const transferTabVisible = document.getElementById('team-transfer').style.display === 'block';
+            const assignedTabVisible = document.getElementById('assigned-tasks').style.display === 'block';
+            const newTasksTabVisible = document.getElementById('new-tasks').style.display === 'block';
+
             // Transfer Tab Dot
             if (transferBadge) {
                 const hasUnreadTransfer = unreadNotifs.some(n => n.type === 'transfer');
-                transferBadge.style.display = hasUnreadTransfer ? 'inline-block' : 'none';
+                transferBadge.style.display = (!transferTabVisible && hasUnreadTransfer) ? 'inline-block' : 'none';
             }
 
             // Assigned Tasks Tab Dot
             if (assignedBadge) {
                 const hasUnreadAssigned = unreadNotifs.some(n => n.type === 'assigned');
-                assignedBadge.style.display = hasUnreadAssigned ? 'inline-block' : 'none';
+                assignedBadge.style.display = (!assignedTabVisible && hasUnreadAssigned) ? 'inline-block' : 'none';
             }
 
             // New Tasks Tab Dot
             if (newTasksBadge) {
                 const hasUnreadAvailable = unreadNotifs.some(n => n.type === 'available');
-                newTasksBadge.style.display = hasUnreadAvailable ? 'inline-block' : 'none';
+                newTasksBadge.style.display = (!newTasksTabVisible && hasUnreadAvailable) ? 'inline-block' : 'none';
             }
         }
 
@@ -811,6 +833,7 @@
 
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
+            updateYellowDots();
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
 
             // Hide notification badge if present
@@ -2066,6 +2089,23 @@
             document.getElementById(modalId).style.display = 'block';
         }
 
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            const proceedBtn = document.getElementById('confirmProceedBtn');
+            
+            // Clone button to remove old listeners
+            const newBtn = proceedBtn.cloneNode(true);
+            proceedBtn.parentNode.replaceChild(newBtn, proceedBtn);
+            
+            newBtn.onclick = () => {
+                onConfirm();
+                closeModal('confirmModal');
+            };
+            
+            showModal('confirmModal');
+        }
+
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
         }
@@ -2099,33 +2139,43 @@
                 return;
             }
 
-            const btn = document.getElementById('requestTransferBtn');
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
+            showConfirmModal(
+                'Confirm Transfer Request',
+                `Are you sure you want to request a transfer to team "${teamCode}"?`,
+                async () => {
+                    const btn = document.getElementById('requestTransferBtn');
+                    const originalText = btn.textContent;
+                    btn.disabled = true;
+                    btn.textContent = 'Processing...';
 
-            try {
-                const response = await fetch(`${API_BASE}/auth/transfer/request/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ future_team_code: teamCode })
-                });
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/transfer/request/`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({ future_team_code: teamCode })
+                        });
 
-                const result = await response.json();
+                        const result = await response.json();
 
-                if (response.ok) {
-                    showMessage('Transfer request initiated successfully!', 'success');
-                    document.getElementById('transferTeamCode').value = '';
-                    loadTransferRequests();
-                } else {
-                    showMessage(result.error || 'Failed to initiate transfer', 'error');
+                        if (response.ok) {
+                            showMessage('Transfer request initiated successfully!', 'success');
+                            document.getElementById('transferTeamCode').value = '';
+                            loadTransferRequests();
+                        } else {
+                            showMessage(result.error || 'Failed to initiate transfer', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error requesting transfer:', error);
+                        showMessage('An error occurred. Please try again.', 'error');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
                 }
-            } catch (error) {
-                console.error('Error requesting transfer:', error);
-                showMessage('An error occurred. Please try again.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Initiate Transfer';
-            }
+            );
         }
 
         async function loadTransferRequests() {

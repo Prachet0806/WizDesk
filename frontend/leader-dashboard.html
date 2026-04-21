@@ -613,7 +613,22 @@
         </div>
     </div>
 
-    <!-- Member Performance Details Modal -->
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="closeModal('confirmModal')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px 0;">
+                <p id="confirmMessage" style="font-size: 1.1rem; color: var(--text-primary);">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('confirmModal')" style="flex: 1;">Cancel</button>
+                <button id="confirmProceedBtn" class="btn btn-primary" style="flex: 1;">Proceed</button>
+            </div>
+        </div>
+    </div>
     <div id="memberPerformanceModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
@@ -865,6 +880,23 @@
             document.getElementById(modalId).style.display = 'block';
         }
 
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            const proceedBtn = document.getElementById('confirmProceedBtn');
+            
+            // Clone button to remove old listeners
+            const newBtn = proceedBtn.cloneNode(true);
+            proceedBtn.parentNode.replaceChild(newBtn, proceedBtn);
+            
+            newBtn.onclick = () => {
+                onConfirm();
+                closeModal('confirmModal');
+            };
+            
+            showModal('confirmModal');
+        }
+
         function showTab(tabId) {
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
@@ -876,6 +908,7 @@
             
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
+            updateYellowDots();
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
 
             // Hide notification badge if present
@@ -2729,29 +2762,36 @@ function showLogoutConfirmation() {
         }
 
         async function processTransfer(requestId, action) {
-            if (!confirm(`Are you sure you want to ${action} this transfer request?`)) return;
+            showConfirmModal(
+                'Confirm Transfer',
+                `Are you sure you want to ${action} this transfer request?`,
+                async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/transfer/${requestId}/process/`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({ action: action })
+                        });
 
-            try {
-                const response = await fetch(`${API_BASE}/auth/transfer/${requestId}/process/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action })
-                });
+                        const result = await response.json();
 
-                const result = await response.json();
-
-                if (response.ok) {
-                    showMessage(result.message || 'Transfer processed successfully', 'success');
-                    loadTransferRequests();
-                    loadAllTeamMembers(); // Refresh team members list
-                    updateDashboardStats();
-                } else {
-                    showMessage(result.error || 'Failed to process transfer', 'error');
+                        if (response.ok) {
+                            showMessage(`Transfer ${action}ed successfully!`);
+                            loadTransferRequests();
+                            loadAllTeamMembers();
+                            updateDashboardStats();
+                        } else {
+                            showMessage(result.error || `Failed to ${action} transfer`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error processing transfer:', error);
+                        showMessage('An error occurred', 'error');
+                    }
                 }
-            } catch (error) {
-                console.error('Error processing transfer:', error);
-                showMessage('An error occurred. Please try again.', 'error');
-            }
+            );
         }
 
         // ===== NOTIFICATION BOX LOGIC =====
@@ -2881,14 +2921,15 @@ function showLogoutConfirmation() {
         }
 
         function updateYellowDots() {
-            const unreadCount = notifications.filter(n => !n.read).length;
             const approvalDot = document.getElementById('approvalDot');
             const tasksDot = document.getElementById('tasksDot');
+            const activeTasksBadge = document.getElementById('activeTasksBadge');
+            const completedTasksBadge = document.getElementById('completedTasksBadge');
             const notifBadge = document.getElementById('notifBadge');
             
             const unreadNotifs = notifications.filter(n => !n.read);
 
-            // Bell Badge
+            // Bell Badge (Always show total unread)
             if (notifBadge) {
                 if (unreadNotifs.length > 0) {
                     notifBadge.textContent = unreadNotifs.length;
@@ -2898,16 +2939,34 @@ function showLogoutConfirmation() {
                 }
             }
 
+            // Check tab visibility
+            const approvalTabVisible = document.getElementById('approval-requests').style.display === 'block';
+            const tasksTabVisible = document.getElementById('tasks').style.display === 'block';
+            const activeTasksTabVisible = document.getElementById('active-tasks').style.display === 'block';
+            const completedTasksTabVisible = document.getElementById('completed-tasks').style.display === 'block';
+
             // Approval Tab Dot
             if (approvalDot) {
                 const hasUnreadRequests = unreadNotifs.some(n => n.type === 'request' || n.type === 'transfer');
-                approvalDot.style.display = (hasUnreadRequests || pendingRequests.length > 0) ? 'inline-block' : 'none';
+                approvalDot.style.display = (!approvalTabVisible && (hasUnreadRequests || pendingRequests.length > 0)) ? 'inline-block' : 'none';
             }
 
             // Task Management Tab Dot
             if (tasksDot) {
                 const hasUnreadStatus = unreadNotifs.some(n => n.type === 'status');
-                tasksDot.style.display = hasUnreadStatus ? 'inline-block' : 'none';
+                tasksDot.style.display = (!tasksTabVisible && hasUnreadStatus) ? 'inline-block' : 'none';
+            }
+
+            // Active Tasks Dot
+            if (activeTasksBadge) {
+                activeTasksBadge.style.display = (!activeTasksTabVisible && activeTasksBadge.style.display === 'inline-block') ? 'inline-block' : 'none';
+                // Note: activeTasksBadge display is also controlled by checkTaskUpdates, 
+                // but we hide it here if tab is visible.
+            }
+
+            // Completed Tasks Dot
+            if (completedTasksBadge) {
+                completedTasksBadge.style.display = (!completedTasksTabVisible && completedTasksBadge.style.display === 'inline-block') ? 'inline-block' : 'none';
             }
         }
 
