@@ -8,6 +8,10 @@ from .serializers import TaskSerializer, SubtaskSerializer
 from users.models import Team, User
 import json
 
+def clean_priority(value, default='medium'):
+    valid = {choice[0] for choice in Task.Priority.choices}
+    return value if value in valid else default
+
 class IsTeamMember(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.team)
@@ -30,7 +34,8 @@ class TaskCreateView(APIView):
             description=description,
             team=team,
             created_by=request.user,
-            status=Task.Status.ACTIVE
+            status=Task.Status.ACTIVE,
+            priority=clean_priority(request.data.get('priority'))
         )
 
         for st in subtasks_data:
@@ -40,7 +45,8 @@ class TaskCreateView(APIView):
                     title=st['title'],
                     description=st.get('description', ''),
                     assigned_to_id=st.get('assigned_to'),
-                    deadline=st.get('deadline')
+                    deadline=st.get('deadline'),
+                    priority=clean_priority(st.get('priority'))
                 )
                 if subtask.assigned_to_id:
                     subtask.status = Subtask.Status.ASSIGNED
@@ -125,6 +131,7 @@ class TaskDetailView(APIView):
         new_status = request.data.get('status')
         title = request.data.get('title')
         description = request.data.get('description')
+        priority = request.data.get('priority')
         
         if new_status:
             task.status = new_status.upper() if new_status.upper() in dict(Task.Status.choices) else new_status.lower()
@@ -132,6 +139,8 @@ class TaskDetailView(APIView):
             task.title = title
         if description is not None:
             task.description = description
+        if priority:
+            task.priority = clean_priority(priority, task.priority)
             
         task.save()
         return Response({'message': 'Task updated successfully', 'task': TaskSerializer(task).data})
@@ -231,6 +240,9 @@ class SubtaskDetailView(APIView):
         
         if 'deadline' in request.data:
             subtask.deadline = request.data.get('deadline') or None
+
+        if 'priority' in request.data:
+            subtask.priority = clean_priority(request.data.get('priority'), subtask.priority)
             
         if 'assigned_to' in request.data:
             assigned_to = request.data.get('assigned_to')

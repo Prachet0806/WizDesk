@@ -2192,6 +2192,9 @@
                             const title = '🔄 Team Transfer Update';
                             const msg = `Your transfer to ${req.future_team_name} is now: ${req.status.replace('_', ' ')}`;
                             showTaskNotification(title, msg, 'transfer');
+                            if (req.status === 'APPROVED') {
+                                refreshSessionAfterTransfer();
+                            }
                         }
                     });
                 }
@@ -2201,6 +2204,20 @@
                 updateYellowDots();
             } catch (error) {
                 console.error('Error loading transfers:', error);
+            }
+        }
+
+        async function refreshSessionAfterTransfer() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/me/`);
+                if (!response.ok) throw new Error('Failed to refresh session');
+                const freshUser = await response.json();
+                currentUser = freshUser;
+                localStorage.setItem('user', JSON.stringify(freshUser));
+                showMessage('You have been moved to a new team!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (error) {
+                console.error('Error refreshing session after transfer:', error);
             }
         }
 

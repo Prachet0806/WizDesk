@@ -352,6 +352,15 @@ class RequestTransferView(APIView):
         except Team.DoesNotExist:
             return Response({'error': 'Invalid future team code'}, status=status.HTTP_400_BAD_REQUEST)
         
+        if request.user.role != User.Role.MEMBER:
+            return Response({'error': 'Only team members can request a transfer.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if request.user.status != User.Status.APPROVED:
+            return Response({'error': 'Your account must be approved before requesting a transfer.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not future_team.leader:
+            return Response({'error': 'The target team has no leader yet. Please try again later.'}, status=status.HTTP_400_BAD_REQUEST)
+
         if not request.user.team:
              return Response({'error': 'You must be in a team to request a transfer.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -397,6 +406,15 @@ class ProcessTransferView(APIView):
             return Response({'error': 'Transfer request not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if action == 'reject':
+            if transfer.status == TeamTransferRequest.Status.PENDING_CURRENT:
+                if transfer.current_team.leader != request.user:
+                    return Response({'error': 'You are not the leader of the current team.'}, status=status.HTTP_403_FORBIDDEN)
+            elif transfer.status == TeamTransferRequest.Status.PENDING_FUTURE:
+                if transfer.future_team.leader != request.user:
+                    return Response({'error': 'You are not the leader of the future team.'}, status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response({'error': 'This transfer request is no longer pending.'}, status=status.HTTP_400_BAD_REQUEST)
+
             transfer.status = TeamTransferRequest.Status.REJECTED
             transfer.rejected_by = request.user
             transfer.rejected_at = timezone.now()
