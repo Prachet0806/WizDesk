@@ -22,10 +22,10 @@ class TeamPerformanceView(APIView):
             status=User.Status.APPROVED
         ).annotate(
             assigned_count=Count('assigned_subtasks'),
-            completed_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed')),
+            completed_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__progress=Subtask.Progress.COMPLETED)),
             # Active defined as assigned but not completed
-            active_count=Count('assigned_subtasks', filter=~Q(assigned_subtasks__status='completed'))
-        )
+            active_count=Count('assigned_subtasks', filter=~Q(assigned_subtasks__progress=Subtask.Progress.COMPLETED))
+        ).distinct()
         
         member_stats = []
         for member in team_members:
@@ -37,5 +37,21 @@ class TeamPerformanceView(APIView):
                 'active_tasks': member.active_count,
                 'assigned_tasks': member.assigned_count
             })
-            
-        return Response(member_stats)
+
+        tasks = Task.objects.filter(team__code=team_code)
+        total_tasks = tasks.count()
+        completed_tasks = tasks.filter(status=Task.Status.COMPLETED).count()
+        active_tasks = tasks.filter(status=Task.Status.ACTIVE).count()
+
+        total_assigned = sum(m['assigned_tasks'] for m in member_stats)
+        total_completed = sum(m['completed_tasks'] for m in member_stats)
+        productivity_score = round((total_completed / total_assigned) * 100) if total_assigned else 0
+
+        return Response({
+            'totalTasks': total_tasks,
+            'completedTasks': completed_tasks,
+            'activeTasks': active_tasks,
+            'productivityScore': productivity_score,
+            'totalMembers': len(member_stats),
+            'memberStats': member_stats
+        })

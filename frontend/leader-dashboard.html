@@ -2276,7 +2276,8 @@ function showLogoutConfirmation() {
                 // Load performance data from API
                 const response = await fetch(`${API_BASE}/performance/team/${currentUser.team_code}/`);
                 if (response.ok) {
-                    memberPerformanceData = await response.json();
+                    const data = await response.json();
+                    memberPerformanceData = (data && Array.isArray(data.memberStats)) ? data.memberStats : [];
                     displayPerformanceData();
                 } else {
                     console.error('Failed to load performance data');
@@ -2527,14 +2528,17 @@ function showLogoutConfirmation() {
                 );
             }
             
+            // Compute completion rate from completed/assigned counts
+            const completionRate = (member) => member.assigned_tasks > 0 ? Math.round((member.completed_tasks / member.assigned_tasks) * 100) : 0;
+            
             // Apply performance category filter
             if (activeFilter === 'top') {
                 filteredData = filteredData.filter(member => 
-                    (member.completion_rate >= 80 || member.completed_tasks > 5) && member.total_tasks > 0
+                    (completionRate(member) >= 80 || member.completed_tasks > 5) && member.assigned_tasks > 0
                 );
             } else if (activeFilter === 'low') {
                 filteredData = filteredData.filter(member => 
-                    member.completion_rate < 50 && member.total_tasks > 0
+                    completionRate(member) < 50 && member.assigned_tasks > 0
                 );
             }
             

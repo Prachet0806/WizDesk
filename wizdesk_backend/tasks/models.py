@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from users.models import Team # Import Team model
 
 class Task(models.Model):
@@ -59,6 +60,35 @@ class Subtask(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+
+    def sync_state(self):
+        completed = self.progress == self.Progress.COMPLETED
+        if completed:
+            self.status = self.Status.COMPLETED
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+        else:
+            self.completed_at = None
+            if self.assigned_to_id:
+                self.status = self.Status.ASSIGNED if self.progress in (
+                    self.Progress.NOT_STARTED, self.Progress.ASSIGNED
+                ) else self.Status.TAKEN
+            else:
+                self.status = self.Status.AVAILABLE
+
+        all_completed = completed and not self.task.subtasks.exclude(
+            pk=self.pk
+        ).exclude(progress=self.Progress.COMPLETED).exists()
+
+        parent = self.task
+        parent_status = Task.Status.COMPLETED if all_completed else (
+            Task.Status.ACTIVE if parent.status == Task.Status.COMPLETED else parent.status
+        )
+        if parent.status != parent_status:
+            parent.status = parent_status
+            parent.save(update_fields=['status', 'updated_at'])
+
+        self.save()
 
     def __str__(self):
         return f"{self.title} (Task: {self.task.title})"

@@ -403,12 +403,7 @@
         initTheme();
 
         // Refresh timers every minute
-        setInterval(() => {
-            if (activeTab === 'overview') loadTasks();
-            else if (activeTab === 'assigned-tasks') loadAssignedTasks();
-            else if (activeTab === 'new-tasks') loadNewTasks();
-            else if (activeTab === 'active-tasks') loadActiveTasks();
-        }, 60000);
+        setInterval(refreshActiveTab, 60000);
 
         // Task Search
         function handleTaskSearch(query, listId) {
@@ -533,6 +528,7 @@
         };
         let currentUser = null;
         let refreshInterval = null;
+        let activeTab = 'overview';
         let currentAction = null;
         let currentSubtaskId = null;
         let currentTaskTitle = null;
@@ -720,6 +716,8 @@
 
         // ===== TAB MANAGEMENT =====
         function showTab(tabId) {
+            activeTab = tabId;
+
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.style.display = 'none';
@@ -760,35 +758,35 @@
         }
 
         // ===== AUTO REFRESH =====
+        function refreshActiveTab() {
+            switch (activeTab) {
+                case 'overview':
+                    loadMemberData();
+                    break;
+                case 'new-tasks':
+                    loadNewTasks();
+                    break;
+                case 'assigned-tasks':
+                    loadAssignedTasks();
+                    break;
+                case 'active-tasks':
+                    loadActiveTasks();
+                    break;
+                case 'completed-tasks':
+                    loadCompletedTasks();
+                    break;
+                case 'team-tasks':
+                    loadTeamTasks();
+                    break;
+            }
+        }
+
         function startAutoRefresh() {
             // Refresh data every 3 seconds for real-time updates
             refreshInterval = setInterval(loadMemberData, 3000);
 
-            // Also refresh the current tab every 3 seconds
-            setInterval(() => {
-                const activeTab = document.querySelector('.tab-content[style="display: block"]') ||
-                    document.querySelector('.tab-content.active');
-                if (activeTab) {
-                    const tabId = activeTab.id;
-                    switch (tabId) {
-                        case 'new-tasks':
-                            loadNewTasks();
-                            break;
-                        case 'assigned-tasks':
-                            loadAssignedTasks();
-                            break;
-                        case 'active-tasks':
-                            loadActiveTasks();
-                            break;
-                        case 'completed-tasks':
-                            loadCompletedTasks();
-                            break;
-                        case 'team-tasks':
-                            loadTeamTasks();
-                            break;
-                    }
-                }
-            }, 20000);
+            // Also refresh the current tab every 20 seconds
+            setInterval(refreshActiveTab, 20000);
         }
 
         // ===== OVERVIEW TAB FUNCTIONS =====
