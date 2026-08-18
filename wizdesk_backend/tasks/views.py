@@ -59,7 +59,7 @@ class TaskCreateView(APIView):
                     task=task,
                     title=st['title'],
                     description=st.get('description', ''),
-                    assigned_to_id=st.get('assigned_to'),
+                    assigned_to=assignee,
                     deadline=st.get('deadline'),
                     priority=clean_priority(st.get('priority'))
                 )
