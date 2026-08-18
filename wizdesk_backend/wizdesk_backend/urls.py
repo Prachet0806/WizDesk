@@ -46,5 +46,6 @@ urlpatterns = [
     path('api/performance/', include('performance.urls')),
 
     # Fallback to serving files from frontend directory (for css, js, images)
-    re_path(r'^(?P<path>.*)$', serve, {'document_root': settings.STATICFILES_DIRS[0]}),
+    # Use negative lookahead to exclude admin and api from being caught by the static server
+    re_path(r'^(?P<path>(?!admin|api).*)$', serve, {'document_root': settings.STATICFILES_DIRS[0]}),
 ]

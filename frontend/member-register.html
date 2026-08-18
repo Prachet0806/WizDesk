@@ -390,9 +390,11 @@
                 <form id="memberRegisterForm">
                     <div class="form-group">
                         <input type="text" id="memberName" placeholder="Your Full Name" required>
+                        <div id="nameError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Name must start with a letter and contain only letters and spaces</div>
                     </div>
                     <div class="form-group">
                         <input type="email" id="memberEmail" placeholder="Email Address" required>
+                        <div id="emailError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Please enter a valid email address</div>
                     </div>
                     <div class="form-group">
                         <input type="password" id="memberPassword" placeholder="Password" required minlength="6">
@@ -466,6 +468,10 @@
         const confirmPasswordInput = document.getElementById('confirmPassword');
         const passwordMatchDiv = document.getElementById('passwordMatch');
         const passwordStrengthDiv = document.getElementById('passwordStrength');
+        const nameError = document.getElementById('nameError');
+        const emailError = document.getElementById('emailError');
+        const memberNameInput = document.getElementById('memberName');
+        const memberEmailInput = document.getElementById('memberEmail');
 
         // Password requirements elements
         const reqLength = document.getElementById('reqLength');
@@ -561,18 +567,45 @@
 
         // Form validation
         function validateForm() {
-            const name = document.getElementById('memberName').value;
-            const email = document.getElementById('memberEmail').value;
+            const name = memberNameInput.value;
+            const email = memberEmailInput.value;
             const password = passwordInput.value;
             const teamCode = document.getElementById('memberTeamCode').value;
             
-            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            // Name validation: Must start with a letter and contain only letters and spaces
+            const nameRegex = /^[A-Za-z][A-Za-z\s]*$/;
+            const isNameValid = nameRegex.test(name);
+            
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const isEmailValid = emailRegex.test(email);
+
             const passwordStrength = checkPasswordStrength(password);
             const isPasswordValid = passwordStrength.requirements.length && passwordStrength.requirements.special;
             const isPasswordMatch = checkPasswordMatch();
             const isFormComplete = name && email && password && teamCode;
 
-            registerBtn.disabled = !(isFormComplete && isEmailValid && isPasswordValid && isPasswordMatch);
+            // Show/Hide name error
+            if (name && !isNameValid) {
+                nameError.style.display = 'block';
+                memberNameInput.classList.add('error');
+            } else {
+                nameError.style.display = 'none';
+                memberNameInput.classList.remove('error');
+                if (name) memberNameInput.classList.add('success');
+            }
+
+            // Show/Hide email error
+            if (email && !isEmailValid) {
+                emailError.style.display = 'block';
+                memberEmailInput.classList.add('error');
+            } else {
+                emailError.style.display = 'none';
+                memberEmailInput.classList.remove('error');
+                if (email) memberEmailInput.classList.add('success');
+            }
+
+            registerBtn.disabled = !(isFormComplete && isNameValid && isEmailValid && isPasswordValid && isPasswordMatch);
         }
 
         // Handle direct registration

@@ -10,6 +10,11 @@ class Task(models.Model):
         COMPLETED = "completed", "Completed"
         ARCHIVED = "archived", "Archived"
 
+    class Priority(models.TextChoices):
+        LOW = "low", "Low"
+        MEDIUM = "medium", "Medium"
+        HIGH = "high", "High"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -18,6 +23,7 @@ class Task(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_tasks')
     
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACTIVE)
+    priority = models.CharField(max_length=50, choices=Priority.choices, default=Priority.MEDIUM)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

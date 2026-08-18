@@ -29,13 +29,19 @@ class TeamPerformanceView(APIView):
         
         member_stats = []
         for member in team_members:
+            assigned = member.assigned_count
+            completed = member.completed_count
+            rate = round((completed / assigned) * 100) if assigned > 0 else 0
+            
             member_stats.append({
                 'id': str(member.id),
                 'name': member.name,
                 'email': member.email,
-                'completed_tasks': member.completed_count,
+                'completed_tasks': completed,
                 'active_tasks': member.active_count,
-                'assigned_tasks': member.assigned_count
+                'assigned_tasks': assigned,
+                'total_tasks': assigned, # For frontend compatibility
+                'completion_rate': rate
             })
 
         tasks = Task.objects.filter(team__code=team_code)

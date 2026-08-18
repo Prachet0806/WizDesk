@@ -47,3 +47,28 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.name} ({self.email})"
+
+class TeamTransferRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING_CURRENT = "PENDING_CURRENT", "Pending Current Lead"
+        PENDING_FUTURE = "PENDING_FUTURE", "Pending Future Lead"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transfer_requests')
+    current_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='outgoing_transfers')
+    future_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='incoming_transfers')
+    
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING_CURRENT)
+    
+    current_lead_approved_at = models.DateTimeField(null=True, blank=True)
+    future_lead_approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='rejected_transfers')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Transfer: {self.member.name} to {self.future_team.name}"

@@ -16,6 +16,9 @@ from .views import (
     DeleteRejectedMemberView,
     RemoveTeamMemberView,
     MeView,
+    RequestTransferView,
+    PendingTransfersView,
+    ProcessTransferView,
 )
 
 urlpatterns = [
@@ -40,4 +43,9 @@ urlpatterns = [
     path('approve-rejected-member/', ApproveRejectedMemberView.as_view(), name='approve-rejected-member'),
     path('delete-rejected-member/<uuid:user_id>/', DeleteRejectedMemberView.as_view(), name='delete-rejected-member'),
     path('team/<str:team_code>/member/<uuid:user_id>/', RemoveTeamMemberView.as_view(), name='remove-team-member'),
+
+    # Team Transfer
+    path('transfer/request/', RequestTransferView.as_view(), name='request-transfer'),
+    path('transfer/pending/', PendingTransfersView.as_view(), name='pending-transfers'),
+    path('transfer/<uuid:pk>/process/', ProcessTransferView.as_view(), name='process-transfer'),
 ]

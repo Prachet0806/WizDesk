@@ -1055,6 +1055,13 @@
                     const result = await response.json();
 
                     if (response.ok) {
+                        // Strictly block Leaders from logging in via the Member form
+                        if (result.user.role === 'LEADER' || result.user.role === 'leader') {
+                            showMemberStatusMessage('Access denied. Please use the Team Leader login form.', 'error');
+                            setButtonLoading(submitButton, false);
+                            return;
+                        }
+
                         // Additional check for member status in the response
                         const roleValue = (result.user.role || '').toLowerCase();
                         const statusValue = (result.user.status || '').toLowerCase();
@@ -1075,11 +1082,7 @@
                         localStorage.setItem('refresh', result.refresh);
                         localStorage.setItem('user', JSON.stringify(result.user));
                         setTimeout(() => {
-                            if (result.user.role === 'LEADER' || result.user.role === 'leader') {
-                                window.location.href = 'leader-dashboard.html';
-                            } else {
-                                window.location.href = 'member-dashboard.html';
-                            }
+                            window.location.href = 'member-dashboard.html';
                         }, 1000);
                     } else {
                         showMessage(result.error, 'error');

@@ -20,12 +20,12 @@
         }
 
         .task-notification {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             border-left: 5px solid #667eea;
             padding: 15px 20px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--shadow);
             width: 320px;
             display: flex;
             align-items: flex-start;
@@ -155,10 +155,12 @@
                 <li data-tab="new-tasks">
                     <span class="nav-icon">🆕</span>
                     <span>New Tasks</span>
+                    <span class="yellow-dot-badge" id="newTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="assigned-tasks">
                     <span class="nav-icon">📋</span>
                     <span>My Tasks</span>
+                    <span class="yellow-dot-badge" id="assignedTasksBadge" style="display: none;"></span>
                 </li>
                 <li data-tab="active-tasks">
                     <span class="nav-icon">⚡</span>
@@ -173,6 +175,11 @@
                 <li data-tab="team-tasks">
                     <span class="nav-icon">👥</span>
                     <span>Team Tasks</span>
+                </li>
+                <li data-tab="team-transfer">
+                    <span class="nav-icon">🔄</span>
+                    <span>Team Transfer</span>
+                    <span class="yellow-dot-badge" id="transferBadge" style="display: none;"></span>
                 </li>
             </ul>
         </div>
@@ -339,11 +346,61 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ===== TEAM TRANSFER TAB ===== -->
+                <div id="team-transfer" class="tab-content" style="display: none;">
+                    <div class="section">
+                        <h2>🔄 Request Team Transfer</h2>
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                            Want to move to another team? Enter the team code of your prospective team. 
+                            Your transfer will require approval from your <strong>current lead</strong> and your <strong>future lead</strong>.
+                        </p>
+                        
+                        <div class="transfer-form-card" style="max-width: 500px; background: var(--bg-primary); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color);">
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 600;">Future Team Code</label>
+                                <input type="text" id="transferTeamCode" class="search-input" placeholder="e.g. ABC123" style="text-transform: uppercase; width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg); color: var(--text-primary);">
+                            </div>
+                            <button class="btn btn-primary" onclick="requestTransfer()" id="requestTransferBtn" style="width: 100%;">
+                                Initiate Transfer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>📋 Transfer Requests Status</h2>
+                        <div id="transferRequestsList" class="task-list">
+                            <!-- Transfer requests will be loaded here -->
+                            <div class="empty-state">
+                                <div class="icon">📜</div>
+                                <h3>No transfer history</h3>
+                                <p>Your team transfer requests will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- ===== MODALS ===== -->
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="closeModal('confirmModal')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px 0;">
+                <p id="confirmMessage" style="font-size: 1.1rem; color: var(--text-primary);">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('confirmModal')" style="flex: 1;">Cancel</button>
+                <button id="confirmProceedBtn" class="btn btn-primary" style="flex: 1;">Proceed</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Task Details Modal -->
     <div id="taskDetailsModal" class="modal">
@@ -424,8 +481,8 @@
         }
 
         // Countdown Timer Logic
-        function getCountdown(deadline) {
-            if (!deadline) return null;
+        function getCountdown(deadline, progress) {
+            if (!deadline || progress === 'completed') return null;
             const now = new Date();
             const target = new Date(deadline);
             const diff = target - now;
@@ -538,6 +595,7 @@
         let lastAvailableTaskIds = new Set();
         let lastActiveTaskIds = new Set();
         let lastCompletedTaskIds = new Set();
+        let lastTransferRequests = [];
         let isInitialLoad = true;
 
         // Create notification container
@@ -570,6 +628,49 @@
                 localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
             }
             updateNotifUI();
+            updateYellowDots();
+        }
+
+        function updateYellowDots() {
+            const transferBadge = document.getElementById('transferBadge');
+            const assignedBadge = document.getElementById('assignedTasksBadge');
+            const newTasksBadge = document.getElementById('newTasksBadge');
+            const notifBadge = document.getElementById('notifBadge');
+            
+            const unreadNotifs = notifications.filter(n => !n.read);
+            
+            // Bell Badge (Global)
+            if (notifBadge) {
+                if (unreadNotifs.length > 0) {
+                    notifBadge.textContent = unreadNotifs.length;
+                    notifBadge.style.display = 'flex';
+                } else {
+                    notifBadge.style.display = 'none';
+                }
+            }
+
+            // Check tab visibility
+            const transferTabVisible = document.getElementById('team-transfer').style.display === 'block';
+            const assignedTabVisible = document.getElementById('assigned-tasks').style.display === 'block';
+            const newTasksTabVisible = document.getElementById('new-tasks').style.display === 'block';
+
+            // Transfer Tab Dot
+            if (transferBadge) {
+                const hasUnreadTransfer = unreadNotifs.some(n => n.type === 'transfer');
+                transferBadge.style.display = (!transferTabVisible && hasUnreadTransfer) ? 'inline-block' : 'none';
+            }
+
+            // Assigned Tasks Tab Dot
+            if (assignedBadge) {
+                const hasUnreadAssigned = unreadNotifs.some(n => n.type === 'assigned');
+                assignedBadge.style.display = (!assignedTabVisible && hasUnreadAssigned) ? 'inline-block' : 'none';
+            }
+
+            // New Tasks Tab Dot
+            if (newTasksBadge) {
+                const hasUnreadAvailable = unreadNotifs.some(n => n.type === 'available');
+                newTasksBadge.style.display = (!newTasksTabVisible && hasUnreadAvailable) ? 'inline-block' : 'none';
+            }
         }
 
         function updateNotifUI() {
@@ -636,6 +737,7 @@
                     localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
                 }
                 updateNotifUI();
+                updateYellowDots();
             }
         }
 
@@ -646,6 +748,7 @@
                 localStorage.setItem(`notifs_${currentUser.id}`, JSON.stringify(notifications));
             }
             updateNotifUI();
+            updateYellowDots();
         }
 
         // Close dropdown when clicking outside
@@ -728,6 +831,7 @@
 
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
+            updateYellowDots();
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
 
             // Hide notification badge if present
@@ -753,6 +857,9 @@
                     break;
                 case 'team-tasks':
                     loadTeamTasks();
+                    break;
+                case 'team-transfer':
+                    loadTransferRequests();
                     break;
             }
         }
@@ -800,6 +907,9 @@
                     fetch(`${API_BASE}/tasks/user/${currentUser.id}/subtasks/`, { signal: controller.signal }),
                     fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`, { signal: controller.signal })
                 ]);
+                
+                // Also load transfer requests for notifications
+                await loadTransferRequests();
 
                 clearTimeout(timeoutId);
 
@@ -979,19 +1089,17 @@
                 const now = new Date();
                 const deadlineDate = new Date(task.deadline);
                 const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
-                const countdown = getCountdown(task.deadline);
 
                 return `
                     <div class="task-card" style="border-left: 4px solid ${daysLeft <= 1 ? '#dc3545' : '#ffc107'}">
                         <div class="task-header">
                             <div>
-                                <div class="task-title">${task.task_title || task.title} ${countdown ? `(${countdown})` : ''}</div>
+                                <div class="task-title">${task.task_title || task.title} ${getCountdown(task.deadline, displayProgress) || ''}</div>
                                 <div class="task-description">${task.title}</div>
                                 <div style="font-size: 0.8rem; color: ${daysLeft <= 1 ? '#dc3545' : '#666'}; margin-top: 5px;">
                                     ⏱️ Due: ${deadlineDate.toLocaleString()}
                                 </div>
                             </div>
-                            <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
                         </div>
                         
                         <div class="task-actions">
@@ -1030,7 +1138,6 @@
                                 <div class="task-title">${task.task_title}</div>
                                 <div class="task-description">${task.title}</div>
                             </div>
-                            <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
                         </div>
                         
                         <div class="task-actions">
@@ -1116,7 +1223,10 @@
                                 <div class="task-title">${task.title || 'Untitled Task'}</div>
                                 <div class="task-description">${task.description || 'No description provided'}</div>
                             </div>
-                            <span class="status-badge status-${overallStatus}">${overallStatus.toUpperCase().replace('_', ' ')}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
+                                <span class="status-badge status-${overallStatus}">${overallStatus.toUpperCase().replace('_', ' ')}</span>
+                            </div>
                         </div>
                         
                         <div class="task-meta">
@@ -1168,11 +1278,14 @@
                     return `
                                         <div class="subtask-item">
                                             <div class="subtask-info">
-                                                <div class="subtask-title">${subtask.title || 'Untitled Subtask'} ${countdown ? `(${countdown})` : ''}</div>
+                                                <div class="subtask-title">
+                                                    ${subtask.title || 'Untitled Subtask'} 
+                                                    <span class="priority-badge priority-${subtask.priority || 'medium'}" style="font-size: 0.65rem; padding: 2px 6px;">${subtask.priority || 'medium'}</span>
+                                                    ${getCountdown(subtask.deadline, displayProgress) || ''}
+                                                </div>
                                                 <div class="subtask-description">${subtask.description || 'No description'}</div>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                                <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
                                                 <span style="font-size: 0.8rem; color: #666;">
                                                     ${assignmentInfo}
                                                 </span>
@@ -1252,7 +1365,10 @@
                                 <div class="task-title">${mainTask}</div>
                                 <div class="task-description">${subtasks[0].task_description || 'No description'}</div>
                             </div>
-                            <span class="status-badge status-${getOverallProgress(subtasks)}">${getOverallProgress(subtasks).toUpperCase()}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                                <span class="priority-badge priority-${subtasks[0].task_priority || 'medium'}">${subtasks[0].task_priority || 'medium'}</span>
+                                <span class="status-badge status-${getOverallProgress(subtasks)}">${getOverallProgress(subtasks).toUpperCase()}</span>
+                            </div>
                         </div>
                         
                         <div class="subtask-list">
@@ -1261,7 +1377,7 @@
                     return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
-                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline) || ''}</div>
+                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline, displayProgress) || ''}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1363,7 +1479,7 @@
                     return `
                                     <div class="subtask-item">
                                         <div class="subtask-info">
-                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline) || ''}</div>
+                                            <div class="subtask-title">${subtask.title} ${getCountdown(subtask.deadline, displayProgress) || ''}</div>
                                             <div class="subtask-description">${subtask.description || 'No description'}</div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1632,14 +1748,14 @@
             const isAssignedToMe = assignedTo === currentUser.id;
             const isAvailable = status === 'available';
 
-            // If task is completed, show completed badge
+            // If task is completed, return nothing for action (status is already shown)
             if (displayProgress === 'completed') {
-                return `<span class="status-badge status-completed">COMPLETED</span>`;
+                return '';
             }
 
             // If task is assigned to someone else and not available
             if (assignedTo && !isAssignedToMe && !isAvailable) {
-                return `<span class="status-badge status-assigned">ASSIGNED TO OTHER</span>`;
+                return `<span class="status-badge status-assigned">${getProgressDisplay(displayProgress)}</span>`;
             }
 
             // If task is available for taking
@@ -1848,9 +1964,10 @@
                     </div>
                     
                     <div class="task-detail-item">
-                        <span class="task-detail-label">Status</span>
-                        <div class="task-detail-value">
+                        <span class="task-detail-label">Status & Priority</span>
+                        <div class="task-detail-value" style="display: flex; gap: 10px;">
                             <span class="status-badge status-${subtask.status}">${getStatusDisplay(subtask.status)}</span>
+                            <span class="priority-badge priority-${subtask.priority || 'medium'}">${(subtask.priority || 'medium').toUpperCase()}</span>
                         </div>
                     </div>
                     
@@ -1858,6 +1975,13 @@
                         <span class="task-detail-label">Progress</span>
                         <div class="task-detail-value">
                             <span class="status-badge status-${displayProgress}">${getProgressDisplay(displayProgress)}</span>
+                        </div>
+                    </div>
+
+                    <div class="task-detail-item">
+                        <span class="task-detail-label">Due Date & Time</span>
+                        <div class="task-detail-value" style="color: #dc3545; font-weight: 600;">
+                            ${subtask.deadline ? new Date(subtask.deadline).toLocaleString() : 'No deadline set'}
                         </div>
                     </div>
                     
@@ -1963,6 +2087,23 @@
             document.getElementById(modalId).style.display = 'block';
         }
 
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            const proceedBtn = document.getElementById('confirmProceedBtn');
+            
+            // Clone button to remove old listeners
+            const newBtn = proceedBtn.cloneNode(true);
+            proceedBtn.parentNode.replaceChild(newBtn, proceedBtn);
+            
+            newBtn.onclick = () => {
+                onConfirm();
+                closeModal('confirmModal');
+            };
+            
+            showModal('confirmModal');
+        }
+
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
         }
@@ -1988,6 +2129,156 @@
                 clearInterval(refreshInterval);
             }
         });
+        // ===== TEAM TRANSFER FUNCTIONS =====
+        async function requestTransfer() {
+            const teamCode = document.getElementById('transferTeamCode').value.trim().toUpperCase();
+            if (!teamCode) {
+                showMessage('Please enter a team code', 'error');
+                return;
+            }
+
+            showConfirmModal(
+                'Confirm Transfer Request',
+                `Are you sure you want to request a transfer to team "${teamCode}"?`,
+                async () => {
+                    const btn = document.getElementById('requestTransferBtn');
+                    const originalText = btn.textContent;
+                    btn.disabled = true;
+                    btn.textContent = 'Processing...';
+
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/transfer/request/`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({ future_team_code: teamCode })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            showMessage('Transfer request initiated successfully!', 'success');
+                            document.getElementById('transferTeamCode').value = '';
+                            loadTransferRequests();
+                        } else {
+                            showMessage(result.error || 'Failed to initiate transfer', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error requesting transfer:', error);
+                        showMessage('An error occurred. Please try again.', 'error');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                }
+            );
+        }
+
+        async function loadTransferRequests() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/transfer/pending/`);
+                if (!response.ok) throw new Error('Failed to fetch transfers');
+                const data = await response.json();
+                
+                // Check for status changes in existing requests
+                if (!isInitialLoad && lastTransferRequests.length > 0) {
+                    data.forEach(req => {
+                        const lastReq = lastTransferRequests.find(lr => lr.id === req.id);
+                        if (lastReq && lastReq.status !== req.status) {
+                            const title = '🔄 Team Transfer Update';
+                            const msg = `Your transfer to ${req.future_team_name} is now: ${req.status.replace('_', ' ')}`;
+                            showTaskNotification(title, msg, 'transfer');
+                            if (req.status === 'APPROVED') {
+                                refreshSessionAfterTransfer();
+                            }
+                        }
+                    });
+                }
+                
+                lastTransferRequests = data;
+                displayTransferRequests(data);
+                updateYellowDots();
+            } catch (error) {
+                console.error('Error loading transfers:', error);
+            }
+        }
+
+        async function refreshSessionAfterTransfer() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/me/`);
+                if (!response.ok) throw new Error('Failed to refresh session');
+                const freshUser = await response.json();
+                currentUser = freshUser;
+                localStorage.setItem('user', JSON.stringify(freshUser));
+                showMessage('You have been moved to a new team!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (error) {
+                console.error('Error refreshing session after transfer:', error);
+            }
+        }
+
+        function displayTransferRequests(requests) {
+            const container = document.getElementById('transferRequestsList');
+            if (requests.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📜</div>
+                        <h3>No transfer history</h3>
+                        <p>Your team transfer requests will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = requests.map(req => {
+                let statusClass = '';
+                let statusText = '';
+                
+                switch(req.status) {
+                    case 'PENDING_CURRENT': 
+                        statusClass = 'status-assigned'; 
+                        statusText = 'WAITING FOR CURRENT LEAD'; 
+                        break;
+                    case 'PENDING_FUTURE': 
+                        statusClass = 'status-in-progress'; 
+                        statusText = 'WAITING FOR FUTURE LEAD'; 
+                        break;
+                    case 'APPROVED': 
+                        statusClass = 'status-available'; 
+                        statusText = 'APPROVED'; 
+                        break;
+                    case 'REJECTED': 
+                        statusClass = 'status-completed'; 
+                        statusText = 'REJECTED'; 
+                        break;
+                }
+
+                return `
+                    <div class="task-card">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">Transfer to ${req.future_team_name} (${req.future_team_code})</div>
+                                <div class="task-description">From ${req.current_team_name}</div>
+                            </div>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="task-meta">
+                            <div class="meta-item">
+                                <span>📅</span>
+                                <span>Requested: ${new Date(req.created_at).toLocaleString()}</span>
+                            </div>
+                            ${req.current_lead_approved_at ? `
+                            <div class="meta-item">
+                                <span>✅</span>
+                                <span>Current Lead Approved: ${new Date(req.current_lead_approved_at).toLocaleString()}</span>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
     </script>
 </body>
 

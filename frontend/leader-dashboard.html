@@ -19,12 +19,12 @@
         }
 
         .task-notification {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             border-left: 5px solid #28a745;
             padding: 15px 20px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow);
             width: 320px;
             display: flex;
             align-items: flex-start;
@@ -54,14 +54,14 @@
 
         .notif-title {
             font-weight: 700;
-            color: #333;
+            color: var(--text-primary);
             font-size: 0.95rem;
             margin-bottom: 2px;
             display: block;
         }
 
         .notif-msg {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 0.85rem;
             line-height: 1.4;
         }
@@ -111,10 +111,12 @@
                     <span class="nav-icon">👥</span>
                     <span>Approve Members</span>
                     <span id="pendingRequestsBadge" class="status-badge status-pending" style="margin-left: auto; display: none;">0</span>
+                    <span class="yellow-dot-badge" id="approvalDot" style="display: none;"></span>
                 </li>
                 <li data-tab="tasks">
                     <span class="nav-icon">📝</span>
                     <span>Task Management</span>
+                    <span class="yellow-dot-badge" id="tasksDot" style="display: none;"></span>
                 </li>
                 <li data-tab="active-tasks">
                     <span class="nav-icon">⚡</span>
@@ -154,6 +156,24 @@
                         <span class="user-role">Team Leader</span>
                     </div>
                     <span class="team-code" id="teamCodeDisplay"></span>
+                    
+                    <!-- Notification Bell -->
+                    <div class="notification-bell-container">
+                        <button id="notifBell" class="theme-toggle" title="Notifications" onclick="toggleNotifDropdown(event)">
+                            🔔
+                            <span id="notifBadge" class="notif-badge">0</span>
+                        </button>
+                        <div id="notifDropdown" class="notif-dropdown">
+                            <div class="notif-dropdown-header">
+                                <h3>Notifications</h3>
+                                <button class="btn-clear-notifs" onclick="clearNotifications(event)">Clear All</button>
+                            </div>
+                            <div id="notifList" class="notif-list">
+                                <div class="empty-notifs">No recent notifications</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="themeToggle" class="theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">🌙</button>
                     <button id="logoutBtn" class="btn btn-danger">Logout</button>
                 </div>
@@ -229,7 +249,6 @@
                     </div>
                 </div>
 
-                <!-- Approval Requests Tab -->
                 <div id="approval-requests" class="tab-content" style="display: none;">
                     <div class="section">
                         <div class="section-header">
@@ -237,6 +256,20 @@
                         </div>
                         <div id="approvalRequestsList">
                             <!-- Pending approval requests will be loaded here -->
+                        </div>
+                    </div>
+
+                    <div class="section" style="margin-top: 30px;">
+                        <div class="section-header">
+                            <h2 class="section-title">Team Transfer Requests</h2>
+                        </div>
+                        <div id="transferRequestsList">
+                            <!-- Transfer requests will be loaded here -->
+                            <div class="empty-state">
+                                <div class="icon">🔄</div>
+                                <h3>No Transfer Requests</h3>
+                                <p>Team transfer requests requiring your approval will appear here</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -385,6 +418,15 @@
                         <textarea class="form-textarea" id="taskDescription" placeholder="Describe the task in detail... (Optional)"></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Task Priority</label>
+                        <select class="form-select" id="taskPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+
                     <!-- Assignment Section -->
                     <div class="assignment-section">
                         <div class="assignment-toggle" onclick="toggleAssignment()">
@@ -423,10 +465,24 @@
                                 <div class="subtask-item">
                                     <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
                                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                                    <select class="form-select assignee-select" style="display: none;">
-                                        <option value="">Select member...</option>
-                                    </select>
+                                    <div class="subtask-field">
+                                        <label class="subtask-field-label">Deadline</label>
+                                        <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                                    </div>
+                                    <div class="subtask-field">
+                                        <label class="subtask-field-label">Priority</label>
+                                        <select class="form-select subtask-priority">
+                                            <option value="low">Low</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="subtask-field assignee-field" style="display: none;">
+                                        <label class="subtask-field-label">Assign To</label>
+                                        <select class="form-select assignee-select">
+                                            <option value="">Select member...</option>
+                                        </select>
+                                    </div>
                                     <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                                 </div>
                             </div>
@@ -467,6 +523,15 @@
                     <div class="form-group">
                         <label class="form-label">Task Description</label>
                         <textarea class="form-textarea" id="editTaskDescription"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Task Priority</label>
+                        <select class="form-select" id="editTaskPriority">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
                     </div>
 
                     <div class="subtasks-section">
@@ -548,7 +613,22 @@
         </div>
     </div>
 
-    <!-- Member Performance Details Modal -->
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="closeModal('confirmModal')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px 0;">
+                <p id="confirmMessage" style="font-size: 1.1rem; color: var(--text-primary);">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('confirmModal')" style="flex: 1;">Cancel</button>
+                <button id="confirmProceedBtn" class="btn btn-primary" style="flex: 1;">Proceed</button>
+            </div>
+        </div>
+    </div>
     <div id="memberPerformanceModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
@@ -678,6 +758,7 @@
         let selectedMembers = [];
         let lastCompletedTaskIds = new Set();
         let lastActiveTaskIds = new Set();
+        let lastSubtaskStatuses = {};
         let isInitialLoad = true;
 
         // Create notification container
@@ -715,59 +796,35 @@
 
         function checkTaskUpdates(tasks) {
             tasks.forEach(task => {
-                let hasActive = false;
-                let hasSubtasks = false;
-                
                 if (task.subtasks) {
-                    hasSubtasks = task.subtasks.length > 0;
                     task.subtasks.forEach(subtask => {
+                        const oldStatus = lastSubtaskStatuses[subtask.id];
+                        
+                        // Check for ANY status change
+                        if (oldStatus && oldStatus !== subtask.status) {
+                            if (!isInitialLoad) {
+                                const memberName = subtask.assigned_to_details?.name || subtask.assigned_to_name || 'A team member';
+                                const title = '📈 Task Status Update';
+                                const msg = `${memberName} updated "${subtask.title}" to ${subtask.status.replace('_', ' ')}.`;
+                                showToastNotification(title, msg, 'status');
+                            }
+                        }
+                        
+                        // Legacy completion/active checks for sidebar badges
                         const sStatus = subtask.status;
                         const sProgress = subtask.progress;
                         
                         if (sStatus === 'completed' || sProgress === 'completed') {
                             if (!lastCompletedTaskIds.has(subtask.id)) {
-                                if (!isInitialLoad) {
-                                    showTaskNotification(
-                                        'Task Completed!',
-                                        `${subtask.assigned_to_details?.name || 'A team member'} completed "${subtask.title}"`
-                                    );
-                                    if (document.getElementById('completed-tasks').style.display !== 'block') {
-                                        document.getElementById('completedTasksBadge').style.display = 'inline-block';
-                                    }
+                                if (!isInitialLoad && document.getElementById('completed-tasks').style.display !== 'block') {
+                                    document.getElementById('completedTasksBadge').style.display = 'inline-block';
                                 }
                                 lastCompletedTaskIds.add(subtask.id);
                             }
-                        } else if (sStatus === 'in_progress' || sStatus === 'testing' || sProgress === 'in_progress' || sProgress === 'testing') {
-                            hasActive = true;
                         }
+                        
+                        lastSubtaskStatuses[subtask.id] = subtask.status;
                     });
-                }
-                
-                if (hasActive) {
-                    if (!lastActiveTaskIds.has(task.id)) {
-                        if (!isInitialLoad && document.getElementById('active-tasks').style.display !== 'block') {
-                            document.getElementById('activeTasksBadge').style.display = 'inline-block';
-                        }
-                        lastActiveTaskIds.add(task.id);
-                    }
-                }
-                
-                if (!hasSubtasks) {
-                    if (task.status === 'completed') {
-                         if (!lastCompletedTaskIds.has(task.id)) {
-                             if (!isInitialLoad && document.getElementById('completed-tasks').style.display !== 'block') {
-                                 document.getElementById('completedTasksBadge').style.display = 'inline-block';
-                             }
-                             lastCompletedTaskIds.add(task.id);
-                         }
-                    } else if (task.status === 'active') {
-                         if (!lastActiveTaskIds.has(task.id)) {
-                             if (!isInitialLoad && document.getElementById('active-tasks').style.display !== 'block') {
-                                 document.getElementById('activeTasksBadge').style.display = 'inline-block';
-                             }
-                             lastActiveTaskIds.add(task.id);
-                         }
-                    }
                 }
             });
         }
@@ -803,7 +860,7 @@
                         loadPerformanceData(true); // Silent refresh
                     }
                 }
-            }, 30000);
+            }, 5000);
         });
 
         // Utility functions
@@ -823,6 +880,23 @@
             document.getElementById(modalId).style.display = 'block';
         }
 
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            const proceedBtn = document.getElementById('confirmProceedBtn');
+            
+            // Clone button to remove old listeners
+            const newBtn = proceedBtn.cloneNode(true);
+            proceedBtn.parentNode.replaceChild(newBtn, proceedBtn);
+            
+            newBtn.onclick = () => {
+                onConfirm();
+                closeModal('confirmModal');
+            };
+            
+            showModal('confirmModal');
+        }
+
         function showTab(tabId) {
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
@@ -834,6 +908,7 @@
             
             // Show selected tab
             document.getElementById(tabId).style.display = 'block';
+            updateYellowDots();
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
 
             // Hide notification badge if present
@@ -963,6 +1038,9 @@ function showLogoutConfirmation() {
                 // Load tasks
                 await loadTasks();
                 
+                // Load transfer requests
+                await loadTransferRequests();
+                
                 updateDashboardStats();
                 
             } catch (error) {
@@ -975,8 +1053,20 @@ function showLogoutConfirmation() {
             try {
                 const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/pending-requests/`);
                 if (response.ok) {
-                    pendingRequests = await response.json();
+                    const data = await response.json();
+                    
+                    // Check for new requests
+                    const hasNew = data.some(r => !pendingRequests.find(pr => pr.id === r.id));
+                    if (!isInitialLoad && hasNew) {
+                        const newRequests = data.filter(r => !pendingRequests.find(pr => pr.id === r.id));
+                        newRequests.forEach(r => {
+                            showToastNotification('🛡️ New Member Request', `${r.name} requested to join.`, 'request');
+                        });
+                    }
+                    
+                    pendingRequests = data;
                     updatePendingRequestsBadge();
+                    updateYellowDots();
                 } else {
                     console.error('Failed to load pending requests');
                     pendingRequests = [];
@@ -1028,6 +1118,7 @@ function showLogoutConfirmation() {
                     checkTaskUpdates(allTasks);
                     isInitialLoad = false;
                     displayRecentTasks();
+                    updateYellowDots();
                 } else {
                     console.error('Failed to load tasks');
                     allTasks = [];
@@ -1208,6 +1299,7 @@ function showLogoutConfirmation() {
 
         // Approval Requests Functions
         async function loadApprovalRequests() {
+            loadTransferRequests();
             const container = document.getElementById('approvalRequestsList');
             
             if (pendingRequests.length === 0) {
@@ -1228,7 +1320,7 @@ function showLogoutConfirmation() {
                             <div class="request-name">${request.name}</div>
                             <div class="request-email">${request.email}</div>
                             <div class="request-meta">
-                                Requested to join on ${new Date(request.created_at).toLocaleDateString()}
+                                Requested to join on ${request.date_joined ? new Date(request.date_joined).toLocaleDateString() : 'Unknown Date'}
                             </div>
                         </div>
                         <div class="request-actions">
@@ -1501,7 +1593,10 @@ function showLogoutConfirmation() {
                             <div class="task-title">${task.title}</div>
                             <div class="task-description">${task.description || 'No description'}</div>
                         </div>
-                        <span class="status-badge ${getTaskStatusClass(task)}">${getTaskStatusText(task)}</span>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                            <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
+                            <span class="status-badge ${getTaskStatusClass(task)}">${getTaskStatusText(task)}</span>
+                        </div>
                     </div>
                     
                     <div class="progress-section">
@@ -1546,6 +1641,7 @@ function showLogoutConfirmation() {
                 document.getElementById('editTaskId').value = task.id;
                 document.getElementById('editTaskTitle').value = task.title;
                 document.getElementById('editTaskDescription').value = task.description || '';
+                document.getElementById('editTaskPriority').value = task.priority || 'medium';
                 
                 // Populate subtasks for editing
                 const subtasksContainer = document.getElementById('editSubtasksContainer');
@@ -1556,6 +1652,11 @@ function showLogoutConfirmation() {
                         <input type="text" class="edit-subtask-input" value="${subtask.title}" placeholder="Subtask title" required>
                         <textarea class="edit-subtask-desc" placeholder="Subtask description">${subtask.description || ''}</textarea>
                         <input type="datetime-local" class="edit-subtask-deadline" value="${deadlineDate}" title="Due Date (Optional)">
+                        <select class="form-select edit-subtask-priority">
+                            <option value="low" ${subtask.priority === 'low' ? 'selected' : ''}>Low</option>
+                            <option value="medium" ${subtask.priority === 'medium' || !subtask.priority ? 'selected' : ''}>Medium</option>
+                            <option value="high" ${subtask.priority === 'high' ? 'selected' : ''}>High</option>
+                        </select>
                         <select class="form-select assignee-select">
                             <option value="">Not assigned</option>
                             ${teamMembers.filter(m => m.role.toUpperCase() !== 'LEADER').map(member => 
@@ -1579,6 +1680,7 @@ function showLogoutConfirmation() {
             const taskId = document.getElementById('editTaskId').value;
             const title = document.getElementById('editTaskTitle').value;
             const description = document.getElementById('editTaskDescription').value;
+            const priority = document.getElementById('editTaskPriority').value;
             
             // Collect subtask updates
             const subtaskItems = document.querySelectorAll('#editSubtasksContainer .edit-subtask-item');
@@ -1587,13 +1689,15 @@ function showLogoutConfirmation() {
                 const title = item.querySelector('.edit-subtask-input').value;
                 const description = item.querySelector('.edit-subtask-desc').value;
                 const deadline = item.querySelector('.edit-subtask-deadline').value;
+                const subtaskPriority = item.querySelector('.edit-subtask-priority').value;
                 const assignedTo = item.querySelector('.assignee-select').value;
                 
                 return {
-                    id: subtaskId,
+                    id: subtaskId && !subtaskId.startsWith('new-') ? subtaskId : null,
                     title,
                     description,
                     deadline: deadline || null,
+                    priority: subtaskPriority,
                     assigned_to: assignedTo || null
                 };
             });
@@ -1606,6 +1710,7 @@ function showLogoutConfirmation() {
                     body: JSON.stringify({
                         title,
                         description,
+                        priority,
                         userId: currentUser.id
                     })
                 });
@@ -1625,6 +1730,7 @@ function showLogoutConfirmation() {
                             description: subtask.description,
                             deadline: subtask.deadline,
                             assigned_to: subtask.assigned_to,
+                            priority: subtask.priority,
                             userId: currentUser.id
                         })
                     });
@@ -1783,7 +1889,10 @@ function showLogoutConfirmation() {
                                 <div class="task-title">${task.title}</div>
                                 <div class="task-description">${task.description || 'No description'}</div>
                             </div>
-                            <span class="status-badge ${statusClass}">${statusText}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
                         </div>
                         
                         <div class="progress-section">
@@ -1939,10 +2048,24 @@ function showLogoutConfirmation() {
                 <div class="subtask-item">
                     <input type="text" class="subtask-input" placeholder="Subtask title (e.g., Design homepage)" required>
                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                    <select class="form-select assignee-select" style="display: none;">
-                        <option value="">Select member...</option>
-                    </select>
+                    <div class="subtask-field">
+                        <label class="subtask-field-label">Deadline</label>
+                        <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                    </div>
+                    <div class="subtask-field">
+                        <label class="subtask-field-label">Priority</label>
+                        <select class="form-select subtask-priority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="subtask-field assignee-field" style="display: none;">
+                        <label class="subtask-field-label">Assign To</label>
+                        <select class="form-select assignee-select">
+                            <option value="">Select member...</option>
+                        </select>
+                    </div>
                     <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                 </div>`;
             
@@ -1964,17 +2087,17 @@ function showLogoutConfirmation() {
         function toggleAssignment() {
             const toggle = document.getElementById('assignmentToggle');
             const section = document.getElementById('assignmentSection');
-            const assignSelects = document.querySelectorAll('.assignee-select');
+            const isActive = toggle.classList.toggle('active');
             
-            if (toggle.classList.contains('active')) {
-                toggle.classList.remove('active');
-                section.style.display = 'none';
-                assignSelects.forEach(select => select.style.display = 'none');
-            } else {
-                toggle.classList.add('active');
-                section.style.display = 'block';
-                assignSelects.forEach(select => select.style.display = 'block');
-                
+            section.style.display = isActive ? 'block' : 'none';
+            
+            // Show/hide assignee dropdowns and labels in subtasks
+            const assigneeFields = document.querySelectorAll('.assignee-field');
+            assigneeFields.forEach(field => {
+                field.style.display = isActive ? 'block' : 'none';
+            });
+            
+            if (isActive) {
                 // Populate assignee dropdowns with selected members only
                 updateAssigneeDropdowns();
             }
@@ -2068,13 +2191,27 @@ function showLogoutConfirmation() {
             subtaskDiv.innerHTML = `
                 <input type="text" class="subtask-input" placeholder="Subtask title" required>
                 <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                <select class="form-select assignee-select" style="display: ${isAssignmentActive ? 'block' : 'none'};">
-                    <option value="">Select member...</option>
-                    ${selectedMembers.map(member => 
-                        `<option value="${member.id}">${member.name} - ${member.email}</option>`
-                    ).join('')}
-                </select>
+                <div class="subtask-field">
+                    <label class="subtask-field-label">Deadline</label>
+                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                </div>
+                <div class="subtask-field">
+                    <label class="subtask-field-label">Priority</label>
+                    <select class="form-select subtask-priority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="subtask-field assignee-field" style="display: ${isAssignmentActive ? 'block' : 'none'};">
+                    <label class="subtask-field-label">Assign To</label>
+                    <select class="form-select assignee-select">
+                        <option value="">Select member...</option>
+                        ${selectedMembers.map(member => 
+                            `<option value="${member.id}">${member.name} - ${member.email}</option>`
+                        ).join('')}
+                    </select>
+                </div>
                 <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
             `;
             container.appendChild(subtaskDiv);
@@ -2097,14 +2234,16 @@ function showLogoutConfirmation() {
         async function createTask() {
             const title = document.getElementById('taskTitle').value;
             const description = document.getElementById('taskDescription').value;
+            const priority = document.getElementById('taskPriority').value;
             const assignSpecific = document.getElementById('assignmentToggle').classList.contains('active');
             
-            // Collect subtasks - UPDATED to include description
+            // Collect subtasks - UPDATED to include description and priority
             const subtaskItems = document.querySelectorAll('.subtask-item');
             const subtasks = Array.from(subtaskItems).map(item => {
                 const title = item.querySelector('.subtask-input').value;
                 const description = item.querySelector('.subtask-desc').value;
                 const deadline = item.querySelector('.subtask-deadline').value;
+                const subtaskPriority = item.querySelector('.subtask-priority').value;
                 const assigneeSelect = item.querySelector('.assignee-select');
                 const assignedTo = assignSpecific && assigneeSelect ? assigneeSelect.value : null;
                 
@@ -2112,6 +2251,7 @@ function showLogoutConfirmation() {
                     title: title,
                     description: description,
                     deadline: deadline || null,
+                    priority: subtaskPriority,
                     assigned_to: assignedTo || null
                 };
             });
@@ -2124,6 +2264,7 @@ function showLogoutConfirmation() {
             const taskData = {
                 title,
                 description,
+                priority,
                 teamCode: currentUser.team_code,
                 createdBy: currentUser.id,
                 subtasks,
@@ -2148,10 +2289,24 @@ function showLogoutConfirmation() {
                         <div class="subtask-item">
                             <input type="text" class="subtask-input" placeholder="Subtask title" required>
                             <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
-                            <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
-                            <select class="form-select assignee-select" style="display: none;">
-                                <option value="">Select member...</option>
-                            </select>
+                            <div class="subtask-field">
+                                <label class="subtask-field-label">Deadline</label>
+                                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                            </div>
+                            <div class="subtask-field">
+                                <label class="subtask-field-label">Priority</label>
+                                <select class="form-select subtask-priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <div class="subtask-field assignee-field" style="display: none;">
+                                <label class="subtask-field-label">Assign To</label>
+                                <select class="form-select assignee-select">
+                                    <option value="">Select member...</option>
+                                </select>
+                            </div>
                             <button type="button" class="remove-subtask" onclick="removeSubtask(this)">Remove</button>
                         </div>
                     `;
@@ -2294,7 +2449,7 @@ function showLogoutConfirmation() {
 
         function displayPerformanceData() {
             displayTopPerformers();
-            displayMembersPerformanceTable();
+            filterPerformanceData();
         }
 
         function displayTopPerformers() {
@@ -2313,7 +2468,8 @@ function showLogoutConfirmation() {
 
             // Sort members by completed tasks (descending) and take top 3
             const topPerformers = [...memberPerformanceData]
-                .sort((a, b) => b.completed_tasks - a.completed_tasks)
+                .sort((a, b) => (b.completed_tasks || 0) - (a.completed_tasks || 0))
+                .filter(m => (m.completed_tasks || 0) > 0)
                 .slice(0, 3);
 
             if (topPerformers.length === 0) {
@@ -2358,72 +2514,71 @@ function showLogoutConfirmation() {
             }).join('');
         }
 
-        function displayMembersPerformanceTable() {
-            const container = document.getElementById('membersPerformanceTable');
-            
-            if (memberPerformanceData.length === 0) {
-                container.innerHTML = `
+        function renderPerformanceTable(data) {
+            if (data.length === 0) {
+                return `
                     <div class="empty-state">
-                        <div class="icon">👥</div>
-                        <h3>No Team Members</h3>
-                        <p>No team members found with performance data</p>
+                        <div class="icon">🔍</div>
+                        <h3>No Members Found</h3>
+                        <p>No members match your criteria</p>
                     </div>
                 `;
-                return;
             }
 
-            container.innerHTML = `
-                <div class="members-performance-table">
-                    <table class="performance-table">
-                        <thead>
+            return `
+                <table class="performance-table">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Tasks Assigned</th>
+                            <th>Tasks Completed</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(member => `
                             <tr>
-                                <th>Member</th>
-                                <th>Tasks Assigned</th>
-                                <th>Tasks Completed</th>
-                                <th>Action</th>
+                                <td>
+                                    <div class="member-info">
+                                        <div class="member-avatar-small">${member.name.charAt(0).toUpperCase()}</div>
+                                        <div class="member-details">
+                                            <div class="member-name" onclick="showMemberPerformanceDetails('${member.id}')" style="cursor: pointer;">
+                                                ${member.name}
+                                            </div>
+                                            <div class="member-email">${member.email}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="task-stats">
+                                        <div class="stat-item">
+                                            <div class="stat-value">${member.assigned_tasks || 0}</div>
+                                            <div class="stat-label">Total</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="task-stats">
+                                        <div class="stat-item">
+                                            <div class="stat-value">${member.completed_tasks || 0}</div>
+                                            <div class="stat-label">Completed</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="view-details-btn" onclick="showMemberPerformanceDetails('${member.id}')">
+                                        View Details
+                                    </button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${memberPerformanceData.map(member => `
-                                <tr>
-                                    <td>
-                                        <div class="member-info">
-                                            <div class="member-avatar-small">${member.name.charAt(0).toUpperCase()}</div>
-                                            <div class="member-details">
-                                                <div class="member-name" onclick="showMemberPerformanceDetails('${member.id}')" style="cursor: pointer;">
-                                                    ${member.name}
-                                                </div>
-                                                <div class="member-email">${member.email}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="task-stats">
-                                            <div class="stat-item">
-                                                <div class="stat-value">${member.assigned_tasks || 0}</div>
-                                                <div class="stat-label">Total</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="task-stats">
-                                            <div class="stat-item">
-                                                <div class="stat-value">${member.completed_tasks || 0}</div>
-                                                <div class="stat-label">Completed</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <button class="view-details-btn" onclick="showMemberPerformanceDetails('${member.id}')">
-                                            View Details
-                                        </button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                        `).join('')}
+                    </tbody>
+                </table>
             `;
+        }
+
+        function displayMembersPerformanceTable() {
+            filterPerformanceData();
         }
 
         async function showMemberPerformanceDetails(memberId) {
@@ -2441,13 +2596,13 @@ function showLogoutConfirmation() {
                 if (tasksResponse.ok) {
                     let data = await tasksResponse.json();
                     const allTasks = data.results || data;
-                    completedTasks = allTasks.filter(task => task.progress === 'completed');
+                    completedTasks = allTasks.filter(task => task.progress === 'completed' || task.status === 'completed');
                 }
 
-                // Calculate completion rate
-                const completionRate = member.assigned_tasks > 0 
-                    ? Math.round((member.completed_tasks / member.assigned_tasks) * 100) 
-                    : 0;
+                // Calculate completion rate (backend now provides it, but we can double check)
+                const completionRate = member.completion_rate !== undefined 
+                    ? member.completion_rate 
+                    : (member.assigned_tasks > 0 ? Math.round((member.completed_tasks / member.assigned_tasks) * 100) : 0);
 
                 // Populate modal content
                 document.getElementById('memberPerformanceContent').innerHTML = `
@@ -2488,11 +2643,10 @@ function showLogoutConfirmation() {
                             <div class="completed-tasks-list">
                                 ${completedTasks.map(task => `
                                     <div class="completed-task-item">
-                                        <div class="completed-task-title">${task.task_title} - ${task.title}</div>
+                                        <div class="completed-task-title">${task.task_title || 'Task'} - ${task.title}</div>
                                         <div class="completed-task-description" style="color: var(--text-secondary); margin: 5px 0;">${task.description || 'No description'}</div>
                                         <div class="completed-task-meta">
-                                            Completed on: ${new Date(task.updated_at).toLocaleDateString()} | 
-                                            Main Task: ${task.task_title}
+                                            Completed on: ${new Date(task.updated_at).toLocaleDateString()}
                                         </div>
                                     </div>
                                 `).join('')}
@@ -2533,80 +2687,315 @@ function showLogoutConfirmation() {
             
             // Apply performance category filter
             if (activeFilter === 'top') {
-                filteredData = filteredData.filter(member => 
-                    (completionRate(member) >= 80 || member.completed_tasks > 5) && member.assigned_tasks > 0
-                );
+                filteredData = filteredData.filter(member => {
+                    const rate = member.completion_rate !== undefined ? member.completion_rate : (member.assigned_tasks > 0 ? (member.completed_tasks / member.assigned_tasks) * 100 : 0);
+                    return (rate >= 80 || member.completed_tasks > 5) && member.assigned_tasks > 0;
+                });
             } else if (activeFilter === 'low') {
-                filteredData = filteredData.filter(member => 
-                    completionRate(member) < 50 && member.assigned_tasks > 0
-                );
+                filteredData = filteredData.filter(member => {
+                    const rate = member.completion_rate !== undefined ? member.completion_rate : (member.assigned_tasks > 0 ? (member.completed_tasks / member.assigned_tasks) * 100 : 0);
+                    return rate < 50 && member.assigned_tasks > 0;
+                });
             }
             
             // Update the table display
             const container = document.getElementById('membersPerformanceTable');
-            if (filteredData.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">🔍</div>
-                        <h3>No Members Found</h3>
-                        <p>No members match your current filter criteria</p>
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div class="members-performance-table">
-                        <table class="performance-table">
-                            <thead>
-                                <tr>
-                                    <th>Member</th>
-                                    <th>Tasks Assigned</th>
-                                    <th>Tasks Completed</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${filteredData.map(member => `
-                                    <tr>
-                                        <td>
-                                            <div class="member-info">
-                                                <div class="member-avatar-small">${member.name.charAt(0).toUpperCase()}</div>
-                                                <div class="member-details">
-                                                    <div class="member-name" onclick="showMemberPerformanceDetails('${member.id}')" style="cursor: pointer;">
-                                                        ${member.name}
-                                                    </div>
-                                                    <div class="member-email">${member.email}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="task-stats">
-                                                <div class="stat-item">
-                                                    <div class="stat-value">${member.assigned_tasks || 0}</div>
-                                                    <div class="stat-label">Total</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="task-stats">
-                                                <div class="stat-item">
-                                                    <div class="stat-value">${member.completed_tasks || 0}</div>
-                                                    <div class="stat-label">Completed</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="view-details-btn" onclick="showMemberPerformanceDetails('${member.id}')">
-                                                View Details
-                                            </button>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+            container.innerHTML = renderPerformanceTable(filteredData);
+        }
+        // ===== TEAM TRANSFER FUNCTIONS =====
+        async function loadTransferRequests() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/transfer/pending/`);
+                if (!response.ok) throw new Error('Failed to fetch transfers');
+                const data = await response.json();
+                
+                // Check for new transfer requests
+                const hasNew = data.some(t => !lastTransferRequests.find(lt => lt.id === t.id));
+                if (!isInitialLoad && hasNew) {
+                    const newTransfers = data.filter(t => !lastTransferRequests.find(lt => lt.id === t.id));
+                    newTransfers.forEach(t => {
+                        const isCurrentLead = t.status === 'PENDING_CURRENT';
+                        const title = isCurrentLead ? '🔄 Outgoing Transfer' : '🔄 Incoming Transfer';
+                        const msg = isCurrentLead ? `${t.member_name} wants to leave to ${t.future_team_name}.` : `${t.member_name} wants to join from ${t.current_team_name}.`;
+                        
+                        showToastNotification(title, msg, 'transfer');
+                    });
+                }
+                
+                lastTransferRequests = data;
+                displayTransferRequests(data);
+                updateYellowDots();
+            } catch (error) {
+                console.error('Error loading transfers:', error);
             }
         }
+
+        function displayTransferRequests(requests) {
+            const container = document.getElementById('transferRequestsList');
+            if (requests.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🔄</div>
+                        <h3>No Transfer Requests</h3>
+                        <p>Team transfer requests requiring your approval will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = requests.map(req => {
+                const isCurrentLead = req.status === 'PENDING_CURRENT';
+                const roleText = isCurrentLead ? 'Outgoing Member' : 'Incoming Member';
+                const teamText = isCurrentLead ? `to ${req.future_team_name}` : `from ${req.current_team_name}`;
+                
+                return `
+                    <div class="task-card" id="transfer-request-${req.id}">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">${req.member_name} (${req.member_email})</div>
+                                <div class="task-description">${roleText} ${teamText}</div>
+                            </div>
+                            <span class="status-badge status-assigned">${req.status.replace('_', ' ')}</span>
+                        </div>
+                        <div class="task-actions" style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button class="btn btn-sm btn-primary" onclick="processTransfer('${req.id}', 'approve')">Approve Transfer</button>
+                            <button class="btn btn-sm btn-outline" onclick="processTransfer('${req.id}', 'reject')" style="color: #dc3545; border-color: #dc3545;">Reject</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function processTransfer(requestId, action) {
+            showConfirmModal(
+                'Confirm Transfer',
+                `Are you sure you want to ${action} this transfer request?`,
+                async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/transfer/${requestId}/process/`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({ action: action })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            showMessage(`Transfer ${action}ed successfully!`);
+                            loadTransferRequests();
+                            loadAllTeamMembers();
+                            updateDashboardStats();
+                        } else {
+                            showMessage(result.error || `Failed to ${action} transfer`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error processing transfer:', error);
+                        showMessage('An error occurred', 'error');
+                    }
+                }
+            );
+        }
+
+        // ===== NOTIFICATION BOX LOGIC =====
+        let notifications = [];
+        let lastTransferRequests = [];
+
+        function loadNotifications() {
+            if (currentUser && currentUser.id) {
+                notifications = JSON.parse(localStorage.getItem(`notifs_leader_${currentUser.id}`)) || [];
+            }
+        }
+
+        function saveNotification(title, message, type) {
+            const newNotif = {
+                id: Date.now(),
+                title,
+                message,
+                type,
+                time: new Date().toISOString(),
+                read: false
+            };
+            notifications.unshift(newNotif);
+            if (notifications.length > 20) notifications = notifications.slice(0, 20);
+            if (currentUser && currentUser.id) {
+                localStorage.setItem(`notifs_leader_${currentUser.id}`, JSON.stringify(notifications));
+            }
+            updateNotifUI();
+            updateYellowDots();
+        }
+
+        function updateNotifUI() {
+            const list = document.getElementById('notifList');
+            const badge = document.getElementById('notifBadge');
+            const unreadCount = notifications.filter(n => !n.read).length;
+
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+
+            if (notifications.length === 0) {
+                list.innerHTML = '<div class="empty-notifs">No recent notifications</div>';
+                return;
+            }
+
+            list.innerHTML = notifications.map(n => `
+                <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markAsRead(${n.id})">
+                    <div class="notif-item-icon">
+                        ${n.type === 'request' ? '🛡️' : n.type === 'transfer' ? '🔄' : '🔔'}
+                    </div>
+                    <div class="notif-item-content">
+                        <div class="notif-item-title">${n.title}</div>
+                        <div class="notif-item-msg">${n.message}</div>
+                        <div class="notif-item-time">${formatNotifTime(n.time)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatNotifTime(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+            return date.toLocaleDateString();
+        }
+
+        function toggleNotifDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('notifDropdown');
+            const isVisible = dropdown.style.display === 'flex';
+            dropdown.style.display = isVisible ? 'none' : 'flex';
+        }
+
+        function markAsRead(id) {
+            const notif = notifications.find(n => n.id === id);
+            if (notif) {
+                notif.read = true;
+                if (currentUser && currentUser.id) {
+                    localStorage.setItem(`notifs_leader_${currentUser.id}`, JSON.stringify(notifications));
+                }
+                updateNotifUI();
+                updateYellowDots();
+            }
+        }
+
+        function clearNotifications(event) {
+            event.stopPropagation();
+            notifications = [];
+            if (currentUser && currentUser.id) {
+                localStorage.setItem(`notifs_leader_${currentUser.id}`, JSON.stringify(notifications));
+            }
+            updateNotifUI();
+            updateYellowDots();
+        }
+
+        function showToastNotification(title, message, type = 'general') {
+            saveNotification(title, message, type);
+            const container = document.querySelector('.notification-container');
+            const toast = document.createElement('div');
+            toast.className = 'task-notification';
+            toast.innerHTML = `
+                <div class="notif-icon">🔔</div>
+                <div class="notif-content">
+                    <strong class="notif-title">${title}</strong>
+                    <div class="notif-msg">${message}</div>
+                </div>
+            `;
+            
+            toast.onclick = () => {
+                showTab('approval-requests');
+                toast.classList.add('closing');
+                setTimeout(() => toast.remove(), 500);
+            };
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('closing');
+                setTimeout(() => toast.remove(), 500);
+            }, 5000);
+        }
+
+        function updateYellowDots() {
+            const approvalDot = document.getElementById('approvalDot');
+            const tasksDot = document.getElementById('tasksDot');
+            const activeTasksBadge = document.getElementById('activeTasksBadge');
+            const completedTasksBadge = document.getElementById('completedTasksBadge');
+            const notifBadge = document.getElementById('notifBadge');
+            
+            const unreadNotifs = notifications.filter(n => !n.read);
+
+            // Bell Badge (Always show total unread)
+            if (notifBadge) {
+                if (unreadNotifs.length > 0) {
+                    notifBadge.textContent = unreadNotifs.length;
+                    notifBadge.style.display = 'flex';
+                } else {
+                    notifBadge.style.display = 'none';
+                }
+            }
+
+            // Check tab visibility
+            const approvalTabVisible = document.getElementById('approval-requests').style.display === 'block';
+            const tasksTabVisible = document.getElementById('tasks').style.display === 'block';
+            const activeTasksTabVisible = document.getElementById('active-tasks').style.display === 'block';
+            const completedTasksTabVisible = document.getElementById('completed-tasks').style.display === 'block';
+
+            // Approval Tab Dot
+            if (approvalDot) {
+                const hasUnreadRequests = unreadNotifs.some(n => n.type === 'request' || n.type === 'transfer');
+                approvalDot.style.display = (!approvalTabVisible && (hasUnreadRequests || pendingRequests.length > 0)) ? 'inline-block' : 'none';
+            }
+
+            // Task Management Tab Dot
+            if (tasksDot) {
+                const hasUnreadStatus = unreadNotifs.some(n => n.type === 'status');
+                tasksDot.style.display = (!tasksTabVisible && hasUnreadStatus) ? 'inline-block' : 'none';
+            }
+
+            // Active Tasks Dot
+            if (activeTasksBadge) {
+                activeTasksBadge.style.display = (!activeTasksTabVisible && activeTasksBadge.style.display === 'inline-block') ? 'inline-block' : 'none';
+                // Note: activeTasksBadge display is also controlled by checkTaskUpdates, 
+                // but we hide it here if tab is visible.
+            }
+
+            // Completed Tasks Dot
+            if (completedTasksBadge) {
+                completedTasksBadge.style.display = (!completedTasksTabVisible && completedTasksBadge.style.display === 'inline-block') ? 'inline-block' : 'none';
+            }
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('notifDropdown');
+            const bell = document.getElementById('notifBell');
+            if (dropdown && !dropdown.contains(e.target) && !bell.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Initialize notifications on load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNotifications();
+            updateNotifUI();
+            
+            // Create notification container if not exists
+            if (!document.querySelector('.notification-container')) {
+                const notifContainer = document.createElement('div');
+                notifContainer.className = 'notification-container';
+                document.body.appendChild(notifContainer);
+            }
+        });
     </script>
 </body>
 </html>
