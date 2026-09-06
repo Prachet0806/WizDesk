@@ -126,6 +126,10 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+# Email verification is currently ON HOLD — registrations auto-verify.
+# Set EMAIL_VERIFICATION_REQUIRED=True to re-enable the send/verify flow.
+EMAIL_VERIFICATION_REQUIRED = os.getenv('EMAIL_VERIFICATION_REQUIRED', 'False') == 'True'
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

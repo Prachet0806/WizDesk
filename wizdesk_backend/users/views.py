@@ -2,6 +2,7 @@ import base64
 import random
 import string
 import re
+from django.conf import settings
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -40,6 +41,7 @@ class SendLeaderVerificationView(APIView):
 
         # Create unverified user
         try:
+            verification_required = getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False)
             user = User.objects.create_user(
                 username=email,
                 email=email,
@@ -48,8 +50,23 @@ class SendLeaderVerificationView(APIView):
                 team_name=team_name,
                 role=User.Role.LEADER,
                 status=User.Status.APPROVED,
-                email_verified=False,
+                email_verified=not verification_required,
             )
+            if not verification_required:
+                # Verification ON HOLD: auto-verify + create team immediately
+                team_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                team = Team.objects.create(code=team_code, name=user.team_name or f"{name}'s Team", leader=user)
+                user.team = team
+                user.save()
+                return Response({
+                    'message': 'Leader registered successfully',
+                    'teamCode': team_code,
+                    'verificationToken': base64.b64encode(email.encode('utf-8')).decode('utf-8'),
+                    'emailSent': False,
+                    'emailMethod': 'none',
+                    'verificationSkipped': True,
+                    'user': UserSerializer(user).data,
+                }, status=status.HTTP_201_CREATED)
             # Encode token
             token = base64.b64encode(email.encode('utf-8')).decode('utf-8')
             return Response({
@@ -72,8 +89,16 @@ class VerifyLeaderEmailView(APIView):
         try:
             email = base64.b64decode(token).decode('utf-8')
             user = User.objects.get(email=email)
-            if user.email_verified:
-                return Response({'message': 'Already verified'})
+            if user.email_verified and user.team:
+                # Verification ON HOLD / idempotent: already done
+                return Response({
+                    'message': 'Leader registered successfully',
+                    'teamCode': user.team.code,
+                    'emailSent': False,
+                    'emailMethod': 'none',
+                    'verificationSkipped': True,
+                    'user': UserSerializer(user).data,
+                })
             
             user.email_verified = True
             
@@ -118,6 +143,7 @@ class SendMemberVerificationView(APIView):
             return Response({'error': 'Invalid team code'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            verification_required = getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False)
             user = User.objects.create_user(
                 username=email,
                 email=email,
@@ -126,8 +152,18 @@ class SendMemberVerificationView(APIView):
                 role=User.Role.MEMBER,
                 status=User.Status.PENDING,
                 team=team,
-                email_verified=False
+                email_verified=not verification_required
             )
+            if not verification_required:
+                # Verification ON HOLD: return immediately, no email step
+                return Response({
+                    'teamName': team.name,
+                    'message': 'Registration received. Waiting for leader approval.',
+                    'verificationToken': base64.b64encode(email.encode('utf-8')).decode('utf-8'),
+                    'emailSent': False,
+                    'emailMethod': 'none',
+                    'verificationSkipped': True,
+                }, status=status.HTTP_201_CREATED)
             token = base64.b64encode(email.encode('utf-8')).decode('utf-8')
             return Response({
                 'verificationToken': token,
@@ -150,6 +186,15 @@ class VerifyMemberEmailView(APIView):
         try:
             email = base64.b64decode(token).decode('utf-8')
             user = User.objects.get(email=email)
+            if not getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False):
+                # Verification ON HOLD: idempotent success
+                user.email_verified = True
+                user.save(update_fields=['email_verified'])
+                return Response({
+                    'teamName': user.team.name if user.team else '',
+                    'message': 'Registration received. Waiting for leader approval.',
+                    'verificationSkipped': True,
+                })
             user.email_verified = True
             user.save()
             return Response({

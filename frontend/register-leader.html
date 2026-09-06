@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register as Leader - WizDesk</title>
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <script src="js/theme.js"></script>
     <style>
         * {
             margin: 0;
@@ -12,8 +17,9 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f8fa;
+            color: #17191c;
             min-height: 100vh;
             padding: 20px;
         }
@@ -356,12 +362,14 @@
         }
     </style>
 </head>
-<body>
+<body class="auth-page">
+    <div class="verification-hold-banner" role="status">Email verification is temporarily paused — your team will be created immediately, no email step required.</div>
     <div class="container">
-        <header>
+        <div class="auth-brand">
+            <div class="auth-logo">W</div>
             <h1>WizDesk</h1>
             <p>Register as Team Leader</p>
-        </header>
+        </div>
 
         <div class="form-container">
             <div class="form-card">
@@ -611,6 +619,12 @@
 
                 if (!sendResponse.ok) {
                     throw new Error(sendResult.error || 'Failed to initialize registration');
+                }
+
+                // Verification ON HOLD: backend may complete registration in one step
+                if (sendResult.verificationSkipped && sendResult.teamCode) {
+                    completeRegistration(sendResult);
+                    return;
                 }
 
                 const token = sendResult.verificationToken;

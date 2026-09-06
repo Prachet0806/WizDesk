@@ -1,0 +1,296 @@
+/* ==========================================================================
+   WizDesk Design System — Tokens
+   Version: 2.0.0
+   ========================================================================== */
+
+/* ==========================================================================
+   COLOR — Light Mode (default)
+   ========================================================================== */
+:root,
+[data-theme="light"] {
+  /* --- App background --- */
+  --color-bg-app: #f7f8fa;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-muted: #f2f4f7;
+  --color-bg-surface-elevated: #ffffff;
+
+  /* --- Text --- */
+  --color-text-primary: #17191c;
+  --color-text-secondary: #667085;
+  --color-text-tertiary: #98a2b3;
+  --color-text-inverse: #ffffff;
+
+  /* --- Borders --- */
+  --color-border-default: #e4e7ec;
+  --color-border-strong: #d0d5dd;
+
+  /* --- Primary (Indigo) --- */
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-muted: #edeefc;
+  --color-primary-text: #ffffff;
+
+  /* --- Semantic: Success (Emerald) --- */
+  --color-success: #12b76a;
+  --color-success-hover: #0ca65c;
+  --color-success-muted: #ecfdf3;
+  --color-success-text: #047857;
+
+  /* --- Semantic: Warning (Amber) --- */
+  --color-warning: #f79009;
+  --color-warning-hover: #e87908;
+  --color-warning-muted: #fff4ed;
+  --color-warning-text: #c45308;
+
+  /* --- Semantic: Danger (Red) --- */
+  --color-danger: #f04438;
+  --color-danger-hover: #e03226;
+  --color-danger-muted: #fef3f2;
+  --color-danger-text: #b42318;
+
+  /* --- Semantic: Info (Sky) --- */
+  --color-info: #0ea5e9;
+  --color-info-hover: #0369a1;
+  --color-info-muted: #f0f9ff;
+  --color-info-text: #0369a1;
+
+  /* --- Sidebar --- */
+  --color-sidebar-bg: #101318;
+  --color-sidebar-text: #f2f4f7;
+  --color-sidebar-text-muted: #98a2b3;
+  --color-sidebar-border: #252b36;
+  --color-sidebar-active: #1b2029;
+
+  /* --- Status Badges (Light) --- */
+  --status-pending-bg: #fff4ed;
+  --status-pending-text: #c45308;
+  --status-pending-border: #fed7aa;
+
+  --status-inprogress-bg: #eff8ff;
+  --status-inprogress-text: #1e40af;
+  --status-inprogress-border: #bfdbfe;
+
+  --status-completed-bg: #ecfdf3;
+  --status-completed-text: #047857;
+  --status-completed-border: #a7f3d0;
+
+  --status-rejected-bg: #fef3f2;
+  --status-rejected-text: #b42318;
+  --status-rejected-border: #fecaca;
+
+  --status-available-bg: #f2f4f7;
+  --status-available-text: #475467;
+  --status-available-border: #d0d5dd;
+
+  /* --- Priority Badges (Light) --- */
+  --priority-high-bg: #fef3f2;
+  --priority-high-text: #b42318;
+  --priority-high-border: #fecaca;
+
+  --priority-medium-bg: #fff4ed;
+  --priority-medium-text: #c45308;
+  --priority-medium-border: #fed7aa;
+
+  --priority-low-bg: #eff8ff;
+  --priority-low-text: #1e40af;
+  --priority-low-border: #bfdbfe;
+}
+
+/* ==========================================================================
+   COLOR — Dark Mode
+   ========================================================================== */
+[data-theme="dark"] {
+  /* --- App background (layered) --- */
+  --color-bg-app: #0b0d0f;
+  --color-bg-surface: #15181d;
+  --color-bg-surface-muted: #1b2027;
+  --color-bg-surface-elevated: #1f242d;
+
+  /* --- Text --- */
+  --color-text-primary: #f5f7fa;
+  --color-text-secondary: #98a2b3;
+  --color-text-tertiary: #667085;
+  --color-text-inverse: #0b0d0f;
+
+  /* --- Borders --- */
+  --color-border-default: #292f38;
+  --color-border-strong: #373d4a;
+
+  /* --- Primary (Indigo) --- */
+  --color-primary: #818cf8;
+  --color-primary-hover: #a5adfc;
+  --color-primary-muted: #1e1e3f;
+  --color-primary-text: #0b0d0f;
+
+  /* --- Semantic: Success --- */
+  --color-success: #34d399;
+  --color-success-hover: #6ee7b7;
+  --color-success-muted: #064e3b;
+  --color-success-text: #064e3b;
+
+  /* --- Semantic: Warning --- */
+  --color-warning: #fbbf24;
+  --color-warning-hover: #fcd34d;
+  --color-warning-muted: #78350f;
+  --color-warning-text: #78350f;
+
+  /* --- Semantic: Danger --- */
+  --color-danger: #f87171;
+  --color-danger-hover: #fca5a5;
+  --color-danger-muted: #7f1d1d;
+  --color-danger-text: #7f1d1d;
+
+  /* --- Semantic: Info --- */
+  --color-info: #38bdf8;
+  --color-info-hover: #7dd3fc;
+  --color-info-muted: #1e3a5f;
+  --color-info-text: #1e3a5f;
+
+  /* --- Sidebar --- */
+  --color-sidebar-bg: #0b0d0f;
+  --color-sidebar-text: #f2f4f7;
+  --color-sidebar-text-muted: #667085;
+  --color-sidebar-border: #252b36;
+  --color-sidebar-active: #1b2029;
+
+  /* --- Status Badges (Dark) --- */
+  --status-pending-bg: #78350f;
+  --status-pending-text: #fbbf24;
+  --status-pending-border: #92400e;
+
+  --status-inprogress-bg: #1e3a5f;
+  --status-inprogress-text: #93c5fd;
+  --status-inprogress-border: #1e40af;
+
+  --status-completed-bg: #064e3b;
+  --status-completed-text: #6ee7b7;
+  --status-completed-border: #047857;
+
+  --status-rejected-bg: #7f1d1d;
+  --status-rejected-text: #fca5a5;
+  --status-rejected-border: #b91c1c;
+
+  --status-available-bg: #1f2937;
+  --status-available-text: #9ca3af;
+  --status-available-border: #374151;
+
+  /* --- Priority Badges (Dark) --- */
+  --priority-high-bg: #7f1d1d;
+  --priority-high-text: #fca5a5;
+  --priority-high-border: #b91c1c;
+
+  --priority-medium-bg: #78350f;
+  --priority-medium-text: #fbbf24;
+  --priority-medium-border: #92400e;
+
+  --priority-low-bg: #1e3a5f;
+  --priority-low-text: #93c5fd;
+  --priority-low-border: #1e40af;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY
+   ========================================================================== */
+:root {
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  --font-size-xs: 0.75rem;      /* 12px */
+  --font-size-sm: 0.875rem;     /* 14px */
+  --font-size-base: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;     /* 18px */
+  --font-size-xl: 1.25rem;      /* 20px */
+  --font-size-2xl: 1.5rem;      /* 24px */
+  --font-size-3xl: 1.875rem;    /* 30px */
+  --font-size-4xl: 2.25rem;     /* 36px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.75;
+}
+
+/* ==========================================================================
+   SPACING
+   ========================================================================== */
+:root {
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+}
+
+/* ==========================================================================
+   BORDER RADIUS
+   ========================================================================== */
+:root {
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+}
+
+/* ==========================================================================
+   SHADOWS
+   ========================================================================== */
+:root {
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.03);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.05), 0 1px 2px rgba(16, 24, 40, 0.03);
+  --shadow-md: 0 4px 8px -2px rgba(16, 24, 40, 0.07), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(16, 24, 40, 0.08), 0 4px 8px -2px rgba(16, 24, 40, 0.03);
+  --shadow-xl: 0 20px 40px -4px rgba(16, 24, 40, 0.1), 0 8px 16px -4px rgba(16, 24, 40, 0.04);
+}
+
+/* ==========================================================================
+   TRANSITIONS
+   ========================================================================== */
+:root {
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ==========================================================================
+   Z-INDEX
+   ========================================================================== */
+:root {
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+:root {
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 72px;
+  --header-height: 64px;
+}
+
+/* ==========================================================================
+   BREAKPOINTS (for reference in JS)
+   ========================================================================== */
+:root {
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1440px;
+}
