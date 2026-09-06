@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register as Leader - WizDesk</title>
-    <link rel="stylesheet" href="css/tokens.css">
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/tokens.css?v=6">
+    <link rel="stylesheet" href="css/base.css?v=6">
+    <link rel="stylesheet" href="css/components.css?v=6">
+    <link rel="stylesheet" href="css/auth.css?v=6">
     <script src="js/theme.js"></script>
+    <script src="js/icons.js" defer></script>
     <style>
         * {
             margin: 0;
@@ -414,7 +415,7 @@
 
                 
                 <div id="successMessage" class="success-message">
-                    <h3>🎉 Registration Successful!</h3>
+                    <h3>Registration Successful</h3>
                     <p>Your team has been created successfully.</p>
                     <p><strong>Team Code: <span id="generatedTeamCode" class="team-code"></span></strong></p>
                     
@@ -506,20 +507,21 @@
             // Length requirement
             if (requirements.length) {
                 reqLength.className = 'requirement met';
-                reqLength.innerHTML = '<span class="requirement-icon">✓</span> At least 6 characters';
+                reqLength.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> At least 6 characters';
             } else {
                 reqLength.className = 'requirement unmet';
-                reqLength.innerHTML = '<span class="requirement-icon">✗</span> At least 6 characters';
+                reqLength.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> At least 6 characters';
             }
 
             // Special character requirement
             if (requirements.special) {
                 reqSpecial.className = 'requirement met';
-                reqSpecial.innerHTML = '<span class="requirement-icon">✓</span> At least 1 special character (!@#$%^&* etc.)';
+                reqSpecial.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> At least 1 special character (!@#$%^&* etc.)';
             } else {
                 reqSpecial.className = 'requirement unmet';
-                reqSpecial.innerHTML = '<span class="requirement-icon">✗</span> At least 1 special character (!@#$%^&* etc.)';
+                reqSpecial.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> At least 1 special character (!@#$%^&* etc.)';
             }
+            if (window.WizDeskIcons) window.WizDeskIcons.init();
         }
 
         // Password match checker
@@ -534,16 +536,18 @@
             }
 
             if (password === confirmPassword) {
-                passwordMatchDiv.textContent = '✓ Passwords match';
+                passwordMatchDiv.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> Passwords match';
                 passwordMatchDiv.className = 'password-match success';
                 confirmPasswordInput.classList.remove('error');
                 confirmPasswordInput.classList.add('success');
+                if (window.WizDeskIcons) window.WizDeskIcons.init();
                 return true;
             } else {
-                passwordMatchDiv.textContent = '✗ Passwords do not match';
+                passwordMatchDiv.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> Passwords do not match';
                 passwordMatchDiv.className = 'password-match error';
                 confirmPasswordInput.classList.remove('success');
                 confirmPasswordInput.classList.add('error');
+                if (window.WizDeskIcons) window.WizDeskIcons.init();
                 return false;
             }
         }
@@ -661,19 +665,19 @@
             leaderRegisterForm.style.display = 'none';
             successMessage.style.display = 'block';
             document.getElementById('generatedTeamCode').textContent = result.teamCode;
-            
+
             // Show email status if applicable, otherwise hide
             const emailStatus = document.getElementById('emailStatus');
             if (result.emailSent && result.emailMethod === 'email') {
                 emailStatus.innerHTML = `
                     <div class="email-success">
-                        ✅ Team code has been sent to your email address: <strong>${result.user.email}</strong>
+                        Team code has been sent to your email address: <strong>${result.user.email}</strong>
                     </div>
                 `;
             } else {
                 emailStatus.innerHTML = `
                     <div class="email-warning">
-                        📋 Registration complete! Please save your team code above.
+                        Registration complete. Please save your team code above.
                     </div>
                 `;
             }

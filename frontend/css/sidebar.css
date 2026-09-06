@@ -1,0 +1,288 @@
+/* ==========================================================================
+   WizDesk — V2 Sidebar theme (single source for the migrated app-shell)
+   Loaded AFTER dashboard.css, BEFORE legacy leader.css / member.css.
+
+   - Light mode (default): white aesthetic sidebar
+   - Dark mode: layered dark surfaces (via [data-theme="dark"] or body.dark-theme)
+   - Collapse: body.sidebar-collapsed removes the grid track entirely
+   - Mobile (<=1023px): fixed drawer driven by body.sidebar-open
+   ========================================================================== */
+
+/* ---- layout guards: never let the grid squeeze or overflow ---- */
+.app-shell {
+  min-width: 0;
+}
+
+.main-content,
+.topbar,
+.page-content {
+  min-width: 0;
+}
+
+/* ---- collapsed: drop the sidebar track, don't just hide the node ----
+   (display:none alone leaves the explicit grid column behind, squeezing
+   .main-content into a narrow strip) */
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: 1fr;
+}
+
+body.sidebar-collapsed .sidebar {
+  display: none;
+}
+
+/* ---- sidebar shell (light default) ---- */
+.sidebar {
+  width: 264px;
+  background: #ffffff;
+  color: #17191c;
+  border-right: 1px solid #e4e7ec;
+  padding: 16px 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 16px;
+  border-bottom: 1px solid #e4e7ec;
+  margin-bottom: 12px;
+}
+
+.sidebar-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #17191c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #98a2b3;
+  padding: 4px 12px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #475467;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-item:hover {
+  background: #f2f4f7;
+  color: #17191c;
+  text-decoration: none;
+}
+
+.sidebar-item.active {
+  background: #edeefc;
+  color: #4338ca;
+  font-weight: 600;
+}
+
+.sidebar-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebar-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-item-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  padding-top: 12px;
+  border-top: 1px solid #e4e7ec;
+  margin-top: 12px;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f2f4f7;
+  min-width: 0;
+}
+
+.sidebar-user .user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #17191c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-user-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- dark mode (either authority: data-theme attr or legacy body class) ---- */
+[data-theme="dark"] .sidebar,
+body.dark-theme .sidebar {
+  background: #15181d;
+  color: #f2f4f7;
+  border-right-color: #292f38;
+}
+
+[data-theme="dark"] .sidebar-header,
+body.dark-theme .sidebar-header {
+  border-bottom-color: #292f38;
+}
+
+[data-theme="dark"] .sidebar-title,
+body.dark-theme .sidebar-title {
+  color: #f2f4f7;
+}
+
+[data-theme="dark"] .sidebar-section-title,
+body.dark-theme .sidebar-section-title {
+  color: #667085;
+}
+
+[data-theme="dark"] .sidebar-item,
+body.dark-theme .sidebar-item {
+  color: #98a2b3;
+}
+
+[data-theme="dark"] .sidebar-item:hover,
+body.dark-theme .sidebar-item:hover {
+  background: #1b2029;
+  color: #f2f4f7;
+}
+
+[data-theme="dark"] .sidebar-item.active,
+body.dark-theme .sidebar-item.active {
+  background: rgba(129, 140, 248, 0.15);
+  color: #a5adfc;
+}
+
+[data-theme="dark"] .sidebar-footer,
+body.dark-theme .sidebar-footer {
+  border-top-color: #292f38;
+}
+
+[data-theme="dark"] .sidebar-user,
+body.dark-theme .sidebar-user {
+  background: #1b2029;
+}
+
+[data-theme="dark"] .sidebar-user .user-name,
+body.dark-theme .sidebar-user .user-name {
+  color: #f2f4f7;
+}
+
+/* ---- mobile drawer (<=1023px) ---- */
+.sidebar-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 900;
+}
+
+@media (max-width: 1023px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  body.sidebar-collapsed .sidebar {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 1000;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  body.sidebar-open .sidebar-scrim {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}

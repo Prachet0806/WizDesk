@@ -49,7 +49,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Leader {'created' if user_created else 'updated'}: rohan@gmail.com / 123")
 
             self.stdout.write(self.style.SUCCESS(
-                '\n✅ Test data ready!\n'
+                '\nTest data ready!\n'
                 '   Email:     rohan@gmail.com\n'
                 '   Password:  123\n'
                 '   Team code: E87HPQ\n'
