@@ -32,7 +32,7 @@ const setupModals = () => {
     if (showBtn && modal) {
         showBtn.onclick = (e) => {
             e.preventDefault();
-            modal.style.display = 'block';
+            modal.style.display = 'flex';
         };
     }
 

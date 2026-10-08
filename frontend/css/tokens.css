@@ -9,25 +9,25 @@
 :root,
 [data-theme="light"] {
   /* --- App background --- */
-  --color-bg-app: #f7f8fa;
+  --color-bg-app: #f0fafa;
   --color-bg-surface: #ffffff;
-  --color-bg-surface-muted: #f2f4f7;
+  --color-bg-surface-muted: #e8f5f5;
   --color-bg-surface-elevated: #ffffff;
 
   /* --- Text --- */
   --color-text-primary: #17191c;
-  --color-text-secondary: #667085;
-  --color-text-tertiary: #98a2b3;
+  --color-text-secondary: #5a6e6e;
+  --color-text-tertiary: #8a9e9e;
   --color-text-inverse: #ffffff;
 
   /* --- Borders --- */
-  --color-border-default: #e4e7ec;
-  --color-border-strong: #d0d5dd;
+  --color-border-default: #cce0e0;
+  --color-border-strong: #b3d0d0;
 
-  /* --- Primary (Indigo) --- */
-  --color-primary: #4f46e5;
-  --color-primary-hover: #4338ca;
-  --color-primary-muted: #edeefc;
+  /* --- Primary (Aquamarine) --- */
+  --color-primary: #00b5b5;
+  --color-primary-hover: #009999;
+  --color-primary-muted: #e0f5f5;
   --color-primary-text: #ffffff;
 
   /* --- Semantic: Success (Emerald) --- */
@@ -55,20 +55,20 @@
   --color-info-text: #0369a1;
 
   /* --- Sidebar --- */
-  --color-sidebar-bg: #101318;
-  --color-sidebar-text: #f2f4f7;
-  --color-sidebar-text-muted: #98a2b3;
-  --color-sidebar-border: #252b36;
-  --color-sidebar-active: #1b2029;
+  --color-sidebar-bg: #0d1b1b;
+  --color-sidebar-text: #e8f5f5;
+  --color-sidebar-text-muted: #8a9e9e;
+  --color-sidebar-border: #1a3030;
+  --color-sidebar-active: #142828;
 
   /* --- Status Badges (Light) --- */
   --status-pending-bg: #fff4ed;
   --status-pending-text: #c45308;
   --status-pending-border: #fed7aa;
 
-  --status-inprogress-bg: #eff8ff;
-  --status-inprogress-text: #1e40af;
-  --status-inprogress-border: #bfdbfe;
+  --status-inprogress-bg: #e0f5f5;
+  --status-inprogress-text: #007777;
+  --status-inprogress-border: #b3dede;
 
   --status-completed-bg: #ecfdf3;
   --status-completed-text: #047857;
@@ -78,7 +78,7 @@
   --status-rejected-text: #b42318;
   --status-rejected-border: #fecaca;
 
-  --status-available-bg: #f2f4f7;
+  --status-available-bg: #e8f5f5;
   --status-available-text: #475467;
   --status-available-border: #d0d5dd;
 
@@ -91,9 +91,9 @@
   --priority-medium-text: #c45308;
   --priority-medium-border: #fed7aa;
 
-  --priority-low-bg: #eff8ff;
-  --priority-low-text: #1e40af;
-  --priority-low-border: #bfdbfe;
+  --priority-low-bg: #e0f5f5;
+  --priority-low-text: #007777;
+  --priority-low-border: #b3dede;
 }
 
 /* ==========================================================================
@@ -101,91 +101,91 @@
    ========================================================================== */
 [data-theme="dark"] {
   /* --- App background (layered) --- */
-  --color-bg-app: #0b0d0f;
-  --color-bg-surface: #15181d;
-  --color-bg-surface-muted: #1b2027;
-  --color-bg-surface-elevated: #1f242d;
+  --color-bg-app: #0a1212;
+  --color-bg-surface: #0f1a1a;
+  --color-bg-surface-muted: #142222;
+  --color-bg-surface-elevated: #1a2a2a;
 
   /* --- Text --- */
-  --color-text-primary: #f5f7fa;
-  --color-text-secondary: #98a2b3;
-  --color-text-tertiary: #667085;
-  --color-text-inverse: #0b0d0f;
+  --color-text-primary: #e8f5f5;
+  --color-text-secondary: #8a9e9e;
+  --color-text-tertiary: #6a8080;
+  --color-text-inverse: #0a1212;
 
   /* --- Borders --- */
-  --color-border-default: #292f38;
-  --color-border-strong: #373d4a;
+  --color-border-default: #1e3535;
+  --color-border-strong: #2a4545;
 
-  /* --- Primary (Indigo) --- */
-  --color-primary: #818cf8;
-  --color-primary-hover: #a5adfc;
-  --color-primary-muted: #1e1e3f;
-  --color-primary-text: #0b0d0f;
+  /* --- Primary (Aquamarine) --- */
+  --color-primary: #40e0d0;
+  --color-primary-hover: #48d1cc;
+  --color-primary-muted: #1a3535;
+  --color-primary-text: #0a1212;
 
   /* --- Semantic: Success --- */
-  --color-success: #34d399;
-  --color-success-hover: #6ee7b7;
-  --color-success-muted: #064e3b;
-  --color-success-text: #064e3b;
+  --color-success: #34d399.
+  --color-success-hover: #6ee7b7.
+  --color-success-muted: #064e3b.
+  --color-success-text: #064e3b.
 
   /* --- Semantic: Warning --- */
-  --color-warning: #fbbf24;
-  --color-warning-hover: #fcd34d;
-  --color-warning-muted: #78350f;
-  --color-warning-text: #78350f;
+  --color-warning: #fbbf24.
+  --color-warning-hover: #fcd34d.
+  --color-warning-muted: #78350f.
+  --color-warning-text: #78350f.
 
   /* --- Semantic: Danger --- */
-  --color-danger: #f87171;
-  --color-danger-hover: #fca5a5;
-  --color-danger-muted: #7f1d1d;
-  --color-danger-text: #7f1d1d;
+  --color-danger: #f87171.
+  --color-danger-hover: #fca5a5.
+  --color-danger-muted: #7f1d1d.
+  --color-danger-text: #7f1d1d.
 
   /* --- Semantic: Info --- */
-  --color-info: #38bdf8;
-  --color-info-hover: #7dd3fc;
-  --color-info-muted: #1e3a5f;
-  --color-info-text: #1e3a5f;
+  --color-info: #38bdf8.
+  --color-info-hover: #7dd3fc.
+  --color-info-muted: #1e3a5f.
+  --color-info-text: #1e3a5f.
 
   /* --- Sidebar --- */
-  --color-sidebar-bg: #0b0d0f;
-  --color-sidebar-text: #f2f4f7;
-  --color-sidebar-text-muted: #667085;
-  --color-sidebar-border: #252b36;
-  --color-sidebar-active: #1b2029;
+  --color-sidebar-bg: #081414.
+  --color-sidebar-text: #e8f5f5.
+  --color-sidebar-text-muted: #6a8080.
+  --color-sidebar-border: #1a2a2a.
+  --color-sidebar-active: #122222.
 
   /* --- Status Badges (Dark) --- */
-  --status-pending-bg: #78350f;
-  --status-pending-text: #fbbf24;
-  --status-pending-border: #92400e;
+  --status-pending-bg: #78350f.
+  --status-pending-text: #fbbf24.
+  --status-pending-border: #92400e.
 
-  --status-inprogress-bg: #1e3a5f;
-  --status-inprogress-text: #93c5fd;
-  --status-inprogress-border: #1e40af;
+  --status-inprogress-bg: #143535.
+  --status-inprogress-text: #40e0d0.
+  --status-inprogress-border: #1a3a3a.
 
-  --status-completed-bg: #064e3b;
-  --status-completed-text: #6ee7b7;
-  --status-completed-border: #047857;
+  --status-completed-bg: #064e3b.
+  --status-completed-text: #6ee7b7.
+  --status-completed-border: #047857.
 
-  --status-rejected-bg: #7f1d1d;
-  --status-rejected-text: #fca5a5;
-  --status-rejected-border: #b91c1c;
+  --status-rejected-bg: #7f1d1d.
+  --status-rejected-text: #fca5a5.
+  --status-rejected-border: #b91c1c.
 
-  --status-available-bg: #1f2937;
-  --status-available-text: #9ca3af;
-  --status-available-border: #374151;
+  --status-available-bg: #1f2937.
+  --status-available-text: #9ca3af.
+  --status-available-border: #374151.
 
   /* --- Priority Badges (Dark) --- */
-  --priority-high-bg: #7f1d1d;
-  --priority-high-text: #fca5a5;
-  --priority-high-border: #b91c1c;
+  --priority-high-bg: #7f1d1d.
+  --priority-high-text: #fca5a5.
+  --priority-high-border: #b91c1c.
 
-  --priority-medium-bg: #78350f;
-  --priority-medium-text: #fbbf24;
-  --priority-medium-border: #92400e;
+  --priority-medium-bg: #78350f.
+  --priority-medium-text: #fbbf24.
+  --priority-medium-border: #92400e.
 
-  --priority-low-bg: #1e3a5f;
-  --priority-low-text: #93c5fd;
-  --priority-low-border: #1e40af;
+  --priority-low-bg: #143535.
+  --priority-low-text: #40e0d0.
+  --priority-low-border: #1a3a3a.
 }
 
 /* ==========================================================================

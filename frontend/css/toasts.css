@@ -40,11 +40,11 @@
 }
 
 .task-notification.assigned {
-  border-left-color: var(--color-primary, #4f46e5);
+  border-left-color: var(--color-primary);
 }
 
 .task-notification.available {
-  border-left-color: var(--color-success, #12b76a);
+  border-left-color: var(--color-success);
 }
 
 .task-notification.closing {
@@ -57,9 +57,9 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md, 8px);
-  background: var(--color-primary-muted, #edeefc);
-  color: var(--color-primary, #4f46e5);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
@@ -139,8 +139,8 @@
 }
 
 .search-input:focus {
-  border-color: var(--color-primary, #4f46e5);
-  box-shadow: 0 0 0 3px var(--color-primary-muted, #edeefc);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-muted);
   outline: none;
 }
 

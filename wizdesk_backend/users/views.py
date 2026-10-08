@@ -3,6 +3,7 @@ import random
 import string
 import re
 from django.conf import settings
+from django.db import connection
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +13,32 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from .models import User, Team, TeamTransferRequest
 from .serializers import UserSerializer, TeamTransferRequestSerializer
+
+
+class HealthCheckView(APIView):
+    """
+    Health check endpoint for uptime monitoring (UptimeRobot, Render, etc.)
+    Returns 200 if healthy, 503 if database unavailable.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # Check database connectivity
+        db_status = "ok"
+        try:
+            connection.ensure_connection()
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+        except Exception:
+            db_status = "error"
+
+        status_code = 200 if db_status == "ok" else 503
+        return Response({
+            "status": "healthy" if db_status == "ok" else "unhealthy",
+            "database": db_status,
+            "version": getattr(settings, 'APP_VERSION', '1.0.0'),
+        }, status=status_code)
+
 
 class IsTeamLeader(permissions.BasePermission):
     def has_permission(self, request, view):

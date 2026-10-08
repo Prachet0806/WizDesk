@@ -860,7 +860,7 @@
         }
 
         function showModal(modalId) {
-            document.getElementById(modalId).style.display = 'block';
+            document.getElementById(modalId).style.display = 'flex';
         }
 
         function showConfirmModal(title, message, onConfirm) {
@@ -953,7 +953,7 @@ function showLogoutConfirmation() {
     // Create confirmation modal
     const modal = document.createElement('div');
     modal.className = 'modal';
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">

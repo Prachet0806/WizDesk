@@ -20,8 +20,16 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from django.views.generic import TemplateView
 from django.views.static import serve
 from django.conf import settings
+from users.views import HealthCheckView
+
+# Custom 404 handler
+handler404 = TemplateView.as_view(template_name='404.html')
 
 urlpatterns = [
+    # Health check endpoints (for uptime monitoring, Render, etc.)
+    path('health/', HealthCheckView.as_view(), name='health'),
+    path('ready/', HealthCheckView.as_view(), name='ready'),
+
     # Static Frontend Routes (Priority)
     path('', TemplateView.as_view(template_name='index.html'), name='index'),
     path('index.html', TemplateView.as_view(template_name='index.html')),

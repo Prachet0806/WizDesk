@@ -15,7 +15,7 @@
   color: var(--color-text-primary);
 }
 
-/* subtle top accent line instead of full purple gradient */
+/* subtle top accent line in aquamarine */
 .auth-page::before {
   content: "";
   position: fixed;

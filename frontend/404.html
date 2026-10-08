@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Page Not Found — WizDesk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <script src="js/theme.js"></script>
+    <style>
+        /* 404 Page — minimal, on-brand */
+        .error-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-6) var(--space-4);
+            background: var(--color-bg-app);
+            color: var(--color-text-primary);
+        }
+
+        /* subtle top accent line */
+        .error-page::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--color-primary);
+        }
+
+        .error-container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .error-code {
+            font-size: clamp(6rem, 15vw, 10rem);
+            font-weight: 800;
+            line-height: 1;
+            color: var(--color-primary);
+            letter-spacing: -0.05em;
+            margin-bottom: var(--space-4);
+            font-family: var(--font-family-base);
+        }
+
+        .error-title {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-3);
+        }
+
+        .error-message {
+            font-size: var(--font-size-base);
+            color: var(--color-text-secondary);
+            line-height: var(--line-height-relaxed);
+            margin-bottom: var(--space-8);
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .error-actions {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+            align-items: center;
+        }
+
+        .error-actions .btn {
+            width: 100%;
+            max-width: 280px;
+        }
+
+        .error-illustration {
+            margin-bottom: var(--space-6);
+        }
+
+        .error-illustration svg {
+            width: 120px;
+            height: 120px;
+            color: var(--color-primary-muted);
+        }
+
+        @media (max-width: 480px) {
+            .error-code {
+                font-size: 5rem;
+            }
+            .error-title {
+                font-size: var(--font-size-xl);
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .error-code,
+            .error-illustration svg {
+                animation: none;
+            }
+        }
+
+        /* Animation for the illustration */
+        .error-illustration svg {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+    </style>
+</head>
+<body class="error-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <main id="main-content" class="error-container">
+        <div class="error-illustration" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                <path d="M9 9h6"/>
+                <path d="M9 15h6"/>
+            </svg>
+        </div>
+
+        <div class="error-code" aria-hidden="true">404</div>
+
+        <h1 class="error-title" id="error-heading">Page Not Found</h1>
+
+        <p class="error-message">
+            Sorry, we couldn't find the page you're looking for. It might have been moved, deleted, or never existed in the first place.
+        </p>
+
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary" id="home-link">
+                <i data-lucide="home"></i>
+                <span>Go to Dashboard</span>
+            </a>
+            <a href="javascript:history.back()" class="btn btn-secondary" id="back-link">
+                <i data-lucide="arrow-left"></i>
+                <span>Go Back</span>
+            </a>
+        </div>
+    </main>
+
+    <script src="js/icons.js" defer></script>
+    <script>
+        // Set focus on the home link for accessibility
+        document.addEventListener('DOMContentLoaded', function() {
+            const homeLink = document.getElementById('home-link');
+            if (homeLink) {
+                homeLink.focus();
+            }
+        });
+    </script>
+</body>
+</html>

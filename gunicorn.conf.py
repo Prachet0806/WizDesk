@@ -32,3 +32,10 @@ limit_request_line = 4094
 
 # Performance
 preload_app = True
+
+# Post-fork: close old database connections to avoid issues with preload_app + Django
+def post_fork(server, worker):
+    import django
+    from django.db import connections
+    for conn in connections.all():
+        conn.close_if_unusable_or_obsolete()

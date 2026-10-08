@@ -87,14 +87,14 @@
 
         input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--color-primary);
             background: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 3px rgba(0, 181, 181, 0.12);
         }
 
         input.error {
             border-color: #dc3545;
-            background: #f8f7ff;
+            background: #fef3f2;
         }
 
         input.success {
@@ -160,7 +160,7 @@
             padding: 10px;
             background: #f8f9fa;
             border-radius: 5px;
-            border-left: 3px solid #667eea;
+            border-left: 3px solid var(--color-primary);
         }
 
         .requirement {
@@ -185,7 +185,7 @@
         .btn-primary {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
             color: white;
             border: none;
             border-radius: 10px;
@@ -198,7 +198,7 @@
 
         .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px rgba(0, 181, 181, 0.35);
         }
 
         .btn-primary:disabled {
@@ -303,7 +303,7 @@
         }
 
         .back-link a {
-            color: #667eea;
+            color: var(--color-primary);
             text-decoration: none;
             font-weight: 500;
         }
