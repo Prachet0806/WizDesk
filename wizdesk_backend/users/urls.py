@@ -16,12 +16,18 @@ from .views import (
     DeleteRejectedMemberView,
     RemoveTeamMemberView,
     MeView,
+    LogoutView,
+    ResendVerificationView,
+    AuthConfigView,
     RequestTransferView,
     PendingTransfersView,
     ProcessTransferView,
 )
 
 urlpatterns = [
+    path('logout/', LogoutView.as_view(), name='logout'),
+    path('resend-verification/', ResendVerificationView.as_view(), name='resend-verification'),
+    path('config/', AuthConfigView.as_view(), name='auth-config'),
     # Auth & Verification
     path('send-verification/', SendLeaderVerificationView.as_view(), name='send-verification'),
     path('verify-email/', VerifyLeaderEmailView.as_view(), name='verify-email'),

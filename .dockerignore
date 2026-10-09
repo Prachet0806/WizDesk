@@ -1,0 +1,12 @@
+venv/
+.venv/
+.git/
+.env*
+**/__pycache__/
+**/*.sqlite3
+**/staticfiles/
+node_modules/
+test-results/
+playwright-report/
+.codex/
+.agents/

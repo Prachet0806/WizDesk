@@ -1,15 +1,19 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register as Leader - WizDesk</title>
-    <link rel="stylesheet" href="css/tokens.css?v=6">
-    <link rel="stylesheet" href="css/base.css?v=6">
-    <link rel="stylesheet" href="css/components.css?v=6">
-    <link rel="stylesheet" href="css/auth.css?v=6">
-    <script src="js/theme.js"></script>
-    <script src="js/icons.js" defer></script>
+    <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <script src="{% static 'js/theme.js' %}"></script>
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/verification.js' %}" defer></script>
+    <script src="{% static 'js/ui.js' %}" defer></script>
+    <script src="{% static 'js/icons.js' %}" defer></script>
     <style>
         * {
             margin: 0;
@@ -356,7 +360,7 @@
             .form-card {
                 padding: 30px 25px;
             }
-            
+
             header h1 {
                 font-size: 2.5rem;
             }
@@ -364,7 +368,7 @@
     </style>
 </head>
 <body class="auth-page">
-    <div class="verification-hold-banner" role="status">Email verification is temporarily paused — your team will be created immediately, no email step required.</div>
+    <div class="verification-hold-banner" role="status">Register your account to continue.</div>
     <div class="container">
         <div class="auth-brand">
             <div class="auth-logo">W</div>
@@ -375,28 +379,28 @@
         <div class="form-container">
             <div class="form-card">
                 <h2>Create Your Team</h2>
-                
+
                 <!-- Registration Form -->
                 <form id="leaderRegisterForm">
                     <div class="form-group">
                         <input type="text" id="leaderName" placeholder="Your Full Name" required>
-                        <div id="nameError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Name must start with a letter and contain only letters and spaces</div>
+                        <div id="nameError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Use letters, spaces, apostrophes, hyphens or periods</div>
                     </div>
                     <div class="form-group">
                         <input type="email" id="leaderEmail" placeholder="Email Address" required>
                         <div id="emailError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Please enter a valid email address</div>
                     </div>
                     <div class="form-group">
-                        <input type="password" id="leaderPassword" placeholder="Password" required minlength="6">
+                        <input type="password" id="leaderPassword" placeholder="Password" required minlength="8">
                         <div id="passwordStrength" class="password-strength"></div>
                         <div class="password-requirements">
                             <div class="requirement" id="reqLength">
                                 <span class="requirement-icon">○</span>
-                                At least 6 characters
+                                At least 8 characters
                             </div>
                             <div class="requirement" id="reqSpecial">
                                 <span class="requirement-icon">○</span>
-                                At least 1 special character (!@#$%^&* etc.)
+                                Special characters improve strength (optional)
                             </div>
                         </div>
                     </div>
@@ -407,27 +411,27 @@
                     <div class="form-group">
                         <input type="text" id="teamName" placeholder="Team Name" required>
                     </div>
-                    
+
                     <button type="button" class="btn-primary" id="createTeamBtn">
                         Create Team
                     </button>
                 </form>
 
-                
+
                 <div id="successMessage" class="success-message">
                     <h3>Registration Successful</h3>
                     <p>Your team has been created successfully.</p>
                     <p><strong>Team Code: <span id="generatedTeamCode" class="team-code"></span></strong></p>
-                    
+
                     <!-- Email Status Display -->
                     <div id="emailStatus" class="email-status"></div>
-                    
+
                     <p style="font-size: 0.9rem; margin-bottom: 20px;">Please save this team code and share it with your team members.</p>
                     <button onclick="window.location.href='index.html'" class="btn-primary" style="background: linear-gradient(135deg, #28a745, #20c997);">Go to Login</button>
                 </div>
-                
+
                 <p class="back-link">
-                    <a href="index.html">← Back to Login</a>
+                    <a href="/index.html">← Back to Login</a>
                 </p>
             </div>
         </div>
@@ -473,12 +477,12 @@
                 special: false
             };
 
-            // Length check (minimum 6 characters)
-            if (password.length >= 6) {
+            // Length check (minimum 8 characters)
+            if (password.length >= 8) {
                 strength++;
                 requirements.length = true;
             } else {
-                feedback = 'Password must be at least 6 characters';
+                feedback = 'Password must be at least 8 characters';
             }
 
             // Special character check
@@ -486,7 +490,7 @@
                 strength++;
                 requirements.special = true;
             } else if (!feedback) {
-                feedback = 'Password must include at least 1 special character';
+                feedback = 'Special characters can improve strength';
             }
 
             // Update requirement indicators
@@ -507,19 +511,19 @@
             // Length requirement
             if (requirements.length) {
                 reqLength.className = 'requirement met';
-                reqLength.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> At least 6 characters';
+                reqLength.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> At least 8 characters';
             } else {
                 reqLength.className = 'requirement unmet';
-                reqLength.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> At least 6 characters';
+                reqLength.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> At least 8 characters';
             }
 
             // Special character requirement
             if (requirements.special) {
                 reqSpecial.className = 'requirement met';
-                reqSpecial.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> At least 1 special character (!@#$%^&* etc.)';
+                reqSpecial.innerHTML = '<span class="requirement-icon" data-lucide="check"></span> Special characters improve strength (optional)';
             } else {
                 reqSpecial.className = 'requirement unmet';
-                reqSpecial.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> At least 1 special character (!@#$%^&* etc.)';
+                reqSpecial.innerHTML = '<span class="requirement-icon" data-lucide="x"></span> Special characters improve strength (optional)';
             }
             if (window.WizDeskIcons) window.WizDeskIcons.init();
         }
@@ -558,17 +562,17 @@
             const email = leaderEmailInput.value;
             const password = passwordInput.value;
             const teamName = document.getElementById('teamName').value;
-            
+
             // Name validation: Must start with a letter and contain only letters and spaces
-            const nameRegex = /^[A-Za-z][A-Za-z\s]*$/;
+            const nameRegex = /^[\p{L}][\p{L}\p{M}\s'.-]*$/u;
             const isNameValid = nameRegex.test(name);
-            
+
             // Email validation
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const isEmailValid = emailRegex.test(email);
 
             const passwordStrength = checkPasswordStrength(password);
-            const isPasswordValid = passwordStrength.requirements.length && passwordStrength.requirements.special;
+            const isPasswordValid = passwordStrength.requirements.length;
             const isPasswordMatch = checkPasswordMatch();
             const isFormComplete = name && email && password && teamName;
 
@@ -631,34 +635,13 @@
                     return;
                 }
 
-                // Verification required: token is delivered by email, never in
-                // the API response. Do not auto-verify here.
-                if (!sendResult.verificationToken || !sendResult.verificationUid) {
-                    leaderRegisterForm.style.display = 'none';
-                    successMessage.style.display = 'block';
-                    document.getElementById('generatedTeamCode').textContent = '—';
-                    document.getElementById('emailStatus').innerHTML =
-                        '<div class="email-success">If this email is not registered, a verification email has been sent. Please check your inbox to continue.</div>';
-                    return;
-                }
-
-                const token = sendResult.verificationToken;
-                const uid = sendResult.verificationUid;
-
-                // Step 2: Directly Verify (Completes registration and creates team)
-                const verifyResponse = await fetch(`${API_BASE}/auth/verify-email/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, uid })
-                });
-
-                const verifyResult = await verifyResponse.json();
-
-                if (verifyResponse.ok) {
-                    completeRegistration(verifyResult);
-                } else {
-                    throw new Error(verifyResult.error || 'Failed to complete registration');
-                }
+                // Registration acceptance does not guarantee email delivery.
+                const notice = document.createElement('p');
+                notice.setAttribute('role', 'status');
+                notice.textContent = 'If this address is eligible, check your inbox for a verification link. You can resend below.';
+                const form = document.getElementById('leaderRegisterForm');
+                form.style.display = 'none';
+                form.after(notice);
             } catch (error) {
                 showMessage(error.message, 'error');
                 // Re-enable form fields if failed
@@ -701,20 +684,20 @@
         // Password input event listeners
         passwordInput.addEventListener('input', function() {
             const password = this.value;
-            
+
             if (password.length === 0) {
                 passwordStrengthDiv.style.display = 'none';
                 passwordInput.classList.remove('error', 'success');
                 // Reset requirement indicators
                 reqLength.className = 'requirement';
-                reqLength.innerHTML = '<span class="requirement-icon">○</span> At least 6 characters';
+                reqLength.innerHTML = '<span class="requirement-icon">○</span> At least 8 characters';
                 reqSpecial.className = 'requirement';
-                reqSpecial.innerHTML = '<span class="requirement-icon">○</span> At least 1 special character (!@#$%^&* etc.)';
+                reqSpecial.innerHTML = '<span class="requirement-icon">○</span> Special characters improve strength (optional)';
             } else {
                 const strength = checkPasswordStrength(password);
                 passwordStrengthDiv.textContent = strength.message;
                 passwordStrengthDiv.className = `password-strength ${strength.level}`;
-                
+
                 if (strength.level === 'weak') {
                     passwordInput.classList.add('error');
                     passwordInput.classList.remove('success');
@@ -723,7 +706,7 @@
                     passwordInput.classList.add('success');
                 }
             }
-            
+
             checkPasswordMatch();
             validateForm();
         });

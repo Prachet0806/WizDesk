@@ -16,44 +16,45 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include, re_path
-from rest_framework_simplejwt.views import TokenRefreshView
 from django.views.generic import TemplateView
-from django.views.static import serve
 from django.conf import settings
-from users.views import HealthCheckView
+from users.views import HealthCheckView, LivenessView, EligibleTokenRefreshView
 
 # Custom 404 handler
-handler404 = TemplateView.as_view(template_name='404.html')
+def handler404(request, exception):
+    from django.http import JsonResponse
+    from django.shortcuts import render
+    if request.path.startswith('/api/'):
+        return JsonResponse({'error': 'Not found'}, status=404)
+    return render(request, '404.html', status=404)
+
 
 urlpatterns = [
     # Health check endpoints (for uptime monitoring, Render, etc.)
-    path('health/', HealthCheckView.as_view(), name='health'),
+    path('health/', LivenessView.as_view(), name='health'),
     path('ready/', HealthCheckView.as_view(), name='ready'),
 
     # Static Frontend Routes (Priority)
     path('', TemplateView.as_view(template_name='index.html'), name='index'),
     path('index.html', TemplateView.as_view(template_name='index.html')),
-    
+
     path('leader-dashboard/', TemplateView.as_view(template_name='leader-dashboard.html'), name='leader_dashboard'),
     path('leader-dashboard.html', TemplateView.as_view(template_name='leader-dashboard.html')),
-    
+
     path('member-dashboard/', TemplateView.as_view(template_name='member-dashboard.html'), name='member_dashboard'),
     path('member-dashboard.html', TemplateView.as_view(template_name='member-dashboard.html')),
-    
+
     path('register-leader/', TemplateView.as_view(template_name='register-leader.html'), name='register_leader'),
     path('register-leader.html', TemplateView.as_view(template_name='register-leader.html')),
-    
+
     path('member-register/', TemplateView.as_view(template_name='member-register.html'), name='member_register'),
     path('member-register.html', TemplateView.as_view(template_name='member-register.html')),
-    
+
     # API Routes
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/refresh/', EligibleTokenRefreshView.as_view(), name='token_refresh'),
     path('api/', include('tasks.urls')),
     path('api/performance/', include('performance.urls')),
 
-    # Fallback to serving files from frontend directory (for css, js, images)
-    # Use negative lookahead to exclude admin and api from being caught by the static server
-    re_path(r'^(?P<path>(?!admin|api).*)$', serve, {'document_root': settings.STATICFILES_DIRS[0]}),
 ]

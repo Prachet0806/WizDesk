@@ -6,7 +6,7 @@ services:
     name: wizdesk-web
     runtime: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn wizdesk_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -"
+    startCommand: "bash release.sh && exec gunicorn --config gunicorn.conf.py wizdesk_backend.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
@@ -66,7 +66,9 @@ services:
         value: "True"
       - key: FRONTEND_URL
         value: ""
-    healthCheckPath: /health/
+      - key: WEB_CONCURRENCY
+        value: "1"
+    healthCheckPath: /ready/
     autoDeploy: true
     plan: free  # or starter for production
 

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -7,11 +8,13 @@
     <title>WizDesk — Log in</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="css/tokens.css">
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/auth.css">
-    <script src="js/theme.js"></script>
+    <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <script src="{% static 'js/theme.js' %}"></script>
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/ui.js' %}" defer></script>
     <style>
         /* Login v2 — clean split layout, no gradients, full dark-mode support */
         .login-topbar {
@@ -178,7 +181,7 @@
                     <button type="submit" class="btn-primary">Log in as leader</button>
                 </form>
                 <div id="leaderStatusMessage" style="display:none;" role="status"></div>
-                <p class="register-link">New leader? <a href="register-leader.html">Create a workspace</a></p>
+                <p class="register-link">New leader? <a href="/register-leader.html">Create a workspace</a></p>
             </div>
 
             <div id="panel-member" role="tabpanel" aria-labelledby="tab-member" hidden>
@@ -205,7 +208,7 @@
                     <button type="submit" class="btn-primary">Log in as member</button>
                 </form>
                 <div id="memberStatusMessage" style="display:none;" role="status"></div>
-                <p class="register-link">New member? <a href="member-register.html">Join a team</a></p>
+                <p class="register-link">New member? <a href="/member-register.html">Join a team</a></p>
             </div>
         </section>
     </main>
@@ -318,20 +321,7 @@
         }
 
         // Check member status before login
-        const checkMemberStatus = async (email, teamCode) => {
-            try {
-                const response = await fetch(`${API_BASE}/auth/check-member-status/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, teamCode })
-                });
-                const result = await response.json();
-                return result;
-            } catch (error) {
-                console.error('Error checking member status:', error);
-                return null;
-            }
-        };
+
 
         // Leader Login
         const leaderLoginForm = document.getElementById('leaderLoginForm');
@@ -385,19 +375,6 @@
                 setButtonLoading(submitButton, true);
                 hideMemberStatusMessage();
                 try {
-                    const statusCheck = await checkMemberStatus(email, teamCode);
-                    if (statusCheck && !statusCheck.canLogin) {
-                        const statusValue = (statusCheck.status || '').toLowerCase();
-                        if (statusValue === 'pending') {
-                            showMemberStatusMessage('Your membership is pending approval from the team leader. Please wait for approval.', 'pending');
-                        } else if (statusValue === 'rejected') {
-                            showMemberStatusMessage('Your membership request was rejected. Please contact your team leader.', 'rejected');
-                        } else {
-                            showMemberStatusMessage(statusCheck.message || 'Unable to login. Please contact your team leader.', 'info');
-                        }
-                        setButtonLoading(submitButton, false);
-                        return;
-                    }
                     const response = await fetch(`${API_BASE}/auth/login/`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

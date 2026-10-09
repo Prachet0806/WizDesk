@@ -5,9 +5,7 @@ from django.db.models import Count, Q
 from tasks.models import Task, Subtask
 from users.models import User, Team
 
-class IsTeamLeader(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role == User.Role.LEADER)
+from users.permissions import IsTeamLeader
 
 class TeamPerformanceView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
@@ -15,24 +13,24 @@ class TeamPerformanceView(APIView):
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         team_members = User.objects.filter(
-            team__code=team_code, 
-            role=User.Role.MEMBER, 
+            team__code=team_code,
+            role=User.Role.MEMBER,
             status=User.Status.APPROVED
         ).annotate(
-            assigned_count=Count('assigned_subtasks'),
-            completed_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__progress=Subtask.Progress.COMPLETED)),
+            assigned_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team)),
+            completed_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team, assigned_subtasks__progress=Subtask.Progress.COMPLETED)),
             # Active defined as assigned but not completed
-            active_count=Count('assigned_subtasks', filter=~Q(assigned_subtasks__progress=Subtask.Progress.COMPLETED))
+            active_count=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team, assigned_subtasks__task__status=Task.Status.ACTIVE) & ~Q(assigned_subtasks__progress=Subtask.Progress.COMPLETED))
         ).distinct()
-        
+
         member_stats = []
         for member in team_members:
             assigned = member.assigned_count
             completed = member.completed_count
             rate = round((completed / assigned) * 100) if assigned > 0 else 0
-            
+
             member_stats.append({
                 'id': str(member.id),
                 'name': member.name,
@@ -57,7 +55,9 @@ class TeamPerformanceView(APIView):
             'totalTasks': total_tasks,
             'completedTasks': completed_tasks,
             'activeTasks': active_tasks,
-            'productivityScore': productivity_score,
+            'productivityScore': productivity_score,  # compatibility alias
+            'completionRate': productivity_score,
+            'reportingScope': 'current_team_all_time',
             'totalMembers': len(member_stats),
             'memberStats': member_stats
         })

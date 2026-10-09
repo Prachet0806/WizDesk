@@ -17,7 +17,7 @@
   /* --- Text --- */
   --color-text-primary: #17191c;
   --color-text-secondary: #5a6e6e;
-  --color-text-tertiary: #8a9e9e;
+  --color-text-tertiary: #627676;
   --color-text-inverse: #ffffff;
 
   /* --- Borders --- */
@@ -25,14 +25,14 @@
   --color-border-strong: #b3d0d0;
 
   /* --- Primary (Aquamarine) --- */
-  --color-primary: #00b5b5;
-  --color-primary-hover: #009999;
+  --color-primary: #007a7a;
+  --color-primary-hover: #006666;
   --color-primary-muted: #e0f5f5;
   --color-primary-text: #ffffff;
 
   /* --- Semantic: Success (Emerald) --- */
-  --color-success: #12b76a;
-  --color-success-hover: #0ca65c;
+  --color-success: #087d49;
+  --color-success-hover: #06683d;
   --color-success-muted: #ecfdf3;
   --color-success-text: #047857;
 
@@ -40,11 +40,11 @@
   --color-warning: #f79009;
   --color-warning-hover: #e87908;
   --color-warning-muted: #fff4ed;
-  --color-warning-text: #c45308;
+  --color-warning-text: #a33e05;
 
   /* --- Semantic: Danger (Red) --- */
-  --color-danger: #f04438;
-  --color-danger-hover: #e03226;
+  --color-danger: #c8352b;
+  --color-danger-hover: #b42b22;
   --color-danger-muted: #fef3f2;
   --color-danger-text: #b42318;
 
@@ -57,13 +57,13 @@
   /* --- Sidebar --- */
   --color-sidebar-bg: #0d1b1b;
   --color-sidebar-text: #e8f5f5;
-  --color-sidebar-text-muted: #8a9e9e;
+  --color-sidebar-text-muted: #627676;
   --color-sidebar-border: #1a3030;
   --color-sidebar-active: #142828;
 
   /* --- Status Badges (Light) --- */
   --status-pending-bg: #fff4ed;
-  --status-pending-text: #c45308;
+  --status-pending-text: #a33e05;
   --status-pending-border: #fed7aa;
 
   --status-inprogress-bg: #e0f5f5;
@@ -88,7 +88,7 @@
   --priority-high-border: #fecaca;
 
   --priority-medium-bg: #fff4ed;
-  --priority-medium-text: #c45308;
+  --priority-medium-text: #a33e05;
   --priority-medium-border: #fed7aa;
 
   --priority-low-bg: #e0f5f5;

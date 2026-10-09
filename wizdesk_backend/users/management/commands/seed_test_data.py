@@ -1,56 +1,36 @@
-"""
-Management command: python manage.py seed_test_data
-
-Creates default test credentials:
-  Leader:    rohan@gmail.com / 123
-  Team code: E87HPQ
-  Team name: Rohan's Team
-
-Run any time to re-create the test data (safe to re-run — idempotent).
-"""
-from django.core.management.base import BaseCommand
+"""Create explicit demo credentials in development without replacing accounts."""
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from users.models import User, Team
 
 
 class Command(BaseCommand):
-    help = 'Seeds test data: leader rohan@gmail.com / 123 with team code E87HPQ'
+    help = 'Create a development-only example.com leader with explicit credentials.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--email', required=True)
+        parser.add_argument('--password', required=True)
+        parser.add_argument('--team-code', required=True)
 
     def handle(self, *args, **options):
+        if not settings.DEBUG:
+            raise CommandError('Demo seeding requires DEBUG=True; production seeding is disabled.')
+        email = options['email'].lower()
+        if not email.endswith('@example.com'):
+            raise CommandError('Use an example.com email address for demo accounts.')
+        try:
+            validate_password(options['password'], User(email=email, username=email))
+        except ValidationError as exc:
+            raise CommandError(' '.join(exc.messages)) from exc
         with transaction.atomic():
-            # ── Team ──────────────────────────────────────────────────────────
-            team, team_created = Team.objects.get_or_create(
-                code='E87HPQ',
-                defaults={'name': "Rohan's Team"}
-            )
-            self.stdout.write(f"Team {'created' if team_created else 'already exists'}: {team.name} ({team.code})")
-
-            # ── Leader ────────────────────────────────────────────────────────
-            leader, user_created = User.objects.get_or_create(
-                email='rohan@gmail.com',
-                defaults={
-                    'username': 'rohan@gmail.com',
-                    'name': 'Rohan',
-                    'role': User.Role.LEADER,
-                    'status': User.Status.APPROVED,
-                    'email_verified': True,
-                    'team': team,
-                    'team_name': team.name,
-                }
-            )
-            leader.set_password('123')
-            leader.save()
-
-            # Ensure the team points back to the leader
-            if not team.leader:
-                team.leader = leader
-                team.save()
-
-            self.stdout.write(f"Leader {'created' if user_created else 'updated'}: rohan@gmail.com / 123")
-
-            self.stdout.write(self.style.SUCCESS(
-                '\nTest data ready!\n'
-                '   Email:     rohan@gmail.com\n'
-                '   Password:  123\n'
-                '   Team code: E87HPQ\n'
-            ))
+            if User.objects.filter(email__iexact=email).exists() or Team.objects.filter(code=options['team_code']).exists():
+                raise CommandError('Account or team already exists; no existing credentials were changed.')
+            user = User.objects.create_user(username=email, email=email, password=options['password'],
+                name='Demo Leader', role=User.Role.LEADER, status=User.Status.APPROVED, email_verified=True)
+            team = Team.objects.create(code=options['team_code'], name='Demo Team', leader=user)
+            user.team = team
+            user.save(update_fields=['team'])
+        self.stdout.write(self.style.SUCCESS('Demo account and team created.'))

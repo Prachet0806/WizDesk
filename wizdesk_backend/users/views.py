@@ -1,393 +1,284 @@
-import random
-import string
-import re
 import logging
+import secrets
+import string
+import unicodedata
 from django.conf import settings
-from django.db import connection, transaction
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from django.db import connection, transaction, IntegrityError
+from django.contrib.auth import authenticate
+from django.core import signing
 from django.core.mail import send_mail
-from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from rest_framework import status, permissions
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.db.models import Count, Q
+from rest_framework import permissions, serializers, status
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.response import Response
+from .api import ObjectAPIView as APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.views import TokenRefreshView
 from .models import User, Team, TeamTransferRequest
 from .serializers import UserSerializer, TeamTransferRequestSerializer
-
+from .permissions import IsTeamLeader, IsApprovedTeamMember, eligible
+from .authentication import EligibleTokenRefreshSerializer
+from tasks.services import release_unfinished, Conflict
 
 logger = logging.getLogger(__name__)
+TOKEN_SALT = 'wizdesk.email-verification.v1'
 
 
-def _send_verification_email(user, token, uid, kind="leader"):
-    """Send the email-verification link. Never raises — logs on failure.
+def password_fingerprint(user):
+    from django.utils.crypto import salted_hmac
+    return salted_hmac(TOKEN_SALT, user.password).hexdigest()
 
-    Tokens are delivered via email only, never in API responses, so a
-    leaked response cannot be used to verify an address the attacker
-    does not control.
-    """
-    frontend = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
-    if frontend:
-        verify_path = 'register-leader.html' if kind == "leader" else 'member-register.html'
-        link = f"{frontend}/{verify_path}?uid={uid}&token={token}"
-    else:
-        link = f"(no FRONTEND_URL configured) uid={uid} token={token}"
-    subject = "Verify your WizDesk email"
-    message = (
-        f"Hi {user.name or user.email},\n\n"
-        f"Please verify your email address by opening this link:\n{link}\n\n"
-        f"This link expires. If you did not register, ignore this email."
-    )
+
+def verification_token(user):
+    return signing.dumps({'uid': str(user.pk), 'role': user.role, 'email': user.email,
+                          'password': password_fingerprint(user)}, salt=TOKEN_SALT, compress=True)
+
+
+def _send_verification_email(user, token=None, uid=None, kind='leader'):
+    # Tokens never appear in responses or application error logs.
+    token = token or verification_token(user)
+    uid = uid or urlsafe_base64_encode(force_bytes(user.pk))
+    path = 'register-leader.html' if user.role == User.Role.LEADER else 'member-register.html'
+    frontend = settings.FRONTEND_URL or ('https://' + settings.RENDER_EXTERNAL_HOSTNAME if getattr(settings, 'RENDER_EXTERNAL_HOSTNAME', '') else '')
+    if not frontend:
+        logger.error('FRONTEND_URL is required for email delivery')
+        return False
+    link = f'{frontend}/{path}?uid={uid}&token={token}'
     try:
-        send_mail(subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', None), [user.email], fail_silently=False)
-        logger.info("Verification email queued for %s", user.email)
+        send_mail('Verify your WizDesk email', f'Hi {user.name},\n\nVerify your email: {link}\n\nThis link expires in 24 hours.', settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
         return True
     except Exception:
-        # Console backend or missing SMTP in dev still surfaces the link in logs.
-        logger.exception("Failed to send verification email to %s; link: %s", user.email, link)
+        logger.error('Verification delivery failed', exc_info=False)
         return False
 
 
-class HealthCheckView(APIView):
-    """
-    Health check endpoint for uptime monitoring (UptimeRobot, Render, etc.)
-    Returns 200 if healthy, 503 if database unavailable.
-    """
+def create_team(user):
+    for attempt in range(5):
+        code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        try:
+            with transaction.atomic():
+                return Team.objects.create(code=code, name=user.team_name or f"{user.name}'s Team", leader=user)
+        except IntegrityError:
+            if not Team.objects.filter(code=code).exists():
+                raise
+    raise Conflict('Could not allocate a team code. Retry registration.')
+
+
+class RegistrationInput(serializers.Serializer):
+    email = serializers.EmailField(max_length=254)
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    name = serializers.CharField(max_length=255)
+    team_name = serializers.CharField(max_length=255, required=False)
+    team_code = serializers.CharField(max_length=20, required=False)
+
+    def validate_name(self, value):
+        if not any(c.isalpha() for c in value) or any(not(c.isalpha() or unicodedata.category(c).startswith('M') or c.isspace() or c in "'-.") for c in value):
+            raise serializers.ValidationError('Enter a valid name.')
+        return value
+
+    def validate(self, values):
+        from django.contrib.auth.password_validation import validate_password
+        values['email'] = values['email'].lower()
+        candidate = User(email=values['email'], username=values['email'], name=values['name'])
+        try:
+            validate_password(values['password'], user=candidate)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': exc.messages})
+        return values
+
+
+class PublicView(APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
+
+
+class HealthCheckView(PublicView):
+    throttle_classes = []
 
     def get(self, request):
-        # Check database connectivity
-        db_status = "ok"
+        db_status = 'ok'
         try:
-            connection.ensure_connection()
             with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
+                cursor.execute('SELECT 1')
         except Exception:
-            db_status = "error"
-
-        status_code = 200 if db_status == "ok" else 503
-        return Response({
-            "status": "healthy" if db_status == "ok" else "unhealthy",
-            "database": db_status,
-            "version": getattr(settings, 'APP_VERSION', '1.0.0'),
-        }, status=status_code)
+            db_status = 'error'
+        return Response({'status': 'healthy' if db_status == 'ok' else 'unhealthy',
+                         'database': db_status, 'version': settings.APP_VERSION}, status=200 if db_status == 'ok' else 503)
 
 
-class IsTeamLeader(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role == User.Role.LEADER)
+class LivenessView(PublicView):
+    throttle_classes = []
 
-# ---------------------------------------------------------
-# AUTH & VERIFICATION VIEWS
-# ---------------------------------------------------------
+    def get(self, request):
+        return Response({'status': 'alive', 'version': settings.APP_VERSION})
 
-class SendLeaderVerificationView(APIView):
-    permission_classes = [permissions.AllowAny]
+
+class AuthConfigView(PublicView):
+    def get(self, request):
+        return Response({'verificationRequired': settings.EMAIL_VERIFICATION_REQUIRED, 'minimumPasswordLength': 8})
+
+
+class RegistrationView(PublicView):
+    throttle_scope = 'registration'
+    role = User.Role.MEMBER
+
+    def post(self, request):
+        payload = dict(request.data)
+        payload['team_name'] = payload.get('team_name') or payload.get('teamName')
+        payload['team_code'] = payload.get('team_code') or payload.get('teamCode')
+        payload = {k: v for k, v in payload.items() if v is not None}
+        validator = RegistrationInput(data=payload)
+        validator.is_valid(raise_exception=True)
+        data = validator.validated_data
+        if self.role == User.Role.LEADER and not data.get('team_name'):
+            raise ValidationError({'team_name': 'Team name is required.'})
+        team = None
+        if self.role == User.Role.MEMBER:
+            team = Team.objects.filter(code=data.get('team_code', '').upper()).first()
+            if not team or not team.leader_id:
+                raise ValidationError({'team_code': 'Invalid team code.'})
+        generic = {'message': 'If eligible, a verification email will arrive. You can request another below.',
+                   'deliveryStatus': 'accepted', 'emailMethod': 'email', 'emailSent': None}
+        try:
+            with transaction.atomic():
+                if User.objects.filter(email__iexact=data['email']).exists():
+                    if settings.EMAIL_VERIFICATION_REQUIRED:
+                        return Response(generic, status=202)
+                    raise ValidationError('Registration unavailable. Try signing in.')
+                user = User.objects.create_user(username=secrets.token_hex(16), email=data['email'], password=data['password'],
+                    name=data['name'], team_name=data.get('team_name'), role=self.role, team=team,
+                    status=User.Status.APPROVED if self.role == User.Role.LEADER else User.Status.PENDING,
+                    email_verified=not settings.EMAIL_VERIFICATION_REQUIRED)
+                if settings.EMAIL_VERIFICATION_REQUIRED:
+                    transaction.on_commit(lambda: _send_verification_email(user))
+                    return Response(generic, status=202)
+                if self.role == User.Role.LEADER:
+                    user.team = create_team(user)
+                    user.save(update_fields=['team'])
+                return Response({'message': 'Registration complete.', 'verificationSkipped': True,
+                                 'teamCode': user.team.code, 'teamName': user.team.name,
+                                 'emailSent': False, 'emailMethod': 'none', 'user': UserSerializer(user).data}, status=201)
+        except IntegrityError:
+            if User.objects.filter(email__iexact=data['email']).exists():
+                if settings.EMAIL_VERIFICATION_REQUIRED:
+                    return Response(generic, status=202)
+                raise ValidationError('Registration unavailable. Try signing in.')
+            raise
+
+
+class SendLeaderVerificationView(RegistrationView):
+    role = User.Role.LEADER
+
+
+class SendMemberVerificationView(RegistrationView):
+    role = User.Role.MEMBER
+
+
+class VerifyEmailView(PublicView):
+    throttle_scope = 'auth'
+    role = User.Role.MEMBER
+
+    @transaction.atomic
+    def post(self, request):
+        token = serializers.CharField(max_length=4096).run_validation(request.data.get('token'))
+        encoded_uid = serializers.CharField(max_length=128).run_validation(request.data.get('uid'))
+        try:
+            data = signing.loads(token, salt=TOKEN_SALT, max_age=86400)
+            uid = force_str(urlsafe_base64_decode(encoded_uid))
+            user = User.objects.select_for_update().get(pk=uid, role=self.role)
+            if data != {'uid': str(user.pk), 'role': user.role, 'email': user.email, 'password': password_fingerprint(user)}:
+                raise ValueError('Wrong account or purpose')
+        except (signing.BadSignature, User.DoesNotExist, DjangoValidationError, ValueError, TypeError, OverflowError, UnicodeError):
+            raise ValidationError('Invalid or expired verification link.')
+        user.email_verified = True
+        if self.role == User.Role.LEADER and not user.team_id:
+            user.team = create_team(user)
+        user.save(update_fields=['email_verified', 'team'])
+        return Response({'message': 'Email verified.', 'teamCode': user.team.code if user.team else '',
+                         'teamName': user.team.name if user.team else '', 'user': UserSerializer(user).data})
+
+
+class VerifyLeaderEmailView(VerifyEmailView):
+    role = User.Role.LEADER
+
+
+class VerifyMemberEmailView(VerifyEmailView):
+    role = User.Role.MEMBER
+
+
+class ResendVerificationView(PublicView):
     throttle_scope = 'registration'
 
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        name = request.data.get('name')
-        team_name = request.data.get('teamName')
-
-        # Validate input (but don't reveal if email exists)
-        if not email or not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
-            return Response({'error': 'Invalid email address'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not name or not re.match(r'^[A-Za-z][A-Za-z\s]*$', name):
-            return Response({'error': 'Name must start with a letter and contain only letters and spaces'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not password:
-            return Response({'error': 'Password is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            validate_password(password)
-        except ValidationError as exc:
-            return Response(
-                {'error': exc.messages},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Always return generic success to prevent email enumeration
-        # Actual user creation happens in try block; if email exists, IntegrityError is caught
-        generic_response = {
-            'message': 'If this email is not registered, a verification email has been sent.',
-            'emailSent': True,
-            'emailMethod': 'email'
-        }
-
-        try:
-            verification_required = getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False)
-            user = User.objects.create_user(
-                username=email,
-                email=email,
-                password=password,
-                name=name,
-                team_name=team_name,
-                role=User.Role.LEADER,
-                status=User.Status.APPROVED,
-                email_verified=not verification_required,
-            )
-            if not verification_required:
-                team_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-                team = Team.objects.create(code=team_code, name=user.team_name or f"{name}'s Team", leader=user)
-                user.team = team
-                user.save()
-                generic_response.update({
-                    'message': 'Leader registered successfully',
-                    'teamCode': team_code,
-                    'verificationToken': '',
-                    'emailSent': False,
-                    'emailMethod': 'none',
-                    'verificationSkipped': True,
-                    'user': UserSerializer(user).data,
-                })
-                return Response(generic_response, status=status.HTTP_201_CREATED)
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            # Deliver token via email only — never in the API response.
-            _send_verification_email(user, token, uid, kind="leader")
-            return Response(generic_response, status=status.HTTP_200_OK)
-        except Exception as e:
-            # If email already exists (IntegrityError), still return generic success
-            logger.info(f"Registration attempt for existing email: {email}")
-            return Response(generic_response, status=status.HTTP_200_OK)
+        field = serializers.EmailField()
+        email = field.run_validation(request.data.get('email'))
+        user = User.objects.filter(email__iexact=email, email_verified=False, is_active=True).first()
+        if user and settings.EMAIL_VERIFICATION_REQUIRED:
+            _send_verification_email(user)
+        return Response({'message': 'If eligible, a verification email will arrive.', 'deliveryStatus': 'accepted'}, status=202)
 
 
-class VerifyLeaderEmailView(APIView):
-    permission_classes = [permissions.AllowAny]
+class CheckMemberStatusView(PublicView):
     throttle_scope = 'auth'
 
     def post(self, request):
-        token = request.data.get('token')
-        uid = request.data.get('uid')
-        if not token or not uid:
-            return Response({'error': 'Token and UID required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            user_id = force_str(urlsafe_base64_decode(uid))
-            user = User.objects.get(pk=user_id)
-        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
-            return Response({'error': 'Invalid verification link'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not default_token_generator.check_token(user, token):
-            return Response({'error': 'Invalid or expired verification token'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if user.email_verified and user.team:
-            # Verification ON HOLD / idempotent: already done
-            return Response({
-                'message': 'Leader registered successfully',
-                'teamCode': user.team.code,
-                'emailSent': False,
-                'emailMethod': 'none',
-                'verificationSkipped': True,
-                'user': UserSerializer(user).data,
-            })
-        
-        user.email_verified = True
-        
-        # Create team for leader
-        team_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        team = Team.objects.create(code=team_code, name=user.team_name, leader=user)
-        user.team = team
-        user.save()
-        return Response({
-            'message': 'Leader registered successfully', 
-            'teamCode': team_code,
-            'emailSent': True,
-            'emailMethod': 'manual',
-            'user': UserSerializer(user).data
-        }, status=status.HTTP_200_OK)
+        return Response({'message': 'Sign in to check your membership status.'})
 
 
-class SendMemberVerificationView(APIView):
-    permission_classes = [permissions.AllowAny]
-    throttle_scope = 'registration'
-
-    def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        name = request.data.get('name')
-        team_code = request.data.get('teamCode') or request.data.get('team_code')
-
-        # Validation (but don't reveal if email exists)
-        if not email or not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
-            return Response({'error': 'Invalid email address'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not name or not re.match(r'^[A-Za-z][A-Za-z\s]*$', name):
-            return Response({'error': 'Name must start with a letter and contain only letters and spaces'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not password:
-            return Response({'error': 'Password is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            validate_password(password)
-        except ValidationError as exc:
-            return Response(
-                {'error': exc.messages},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            team = Team.objects.get(code=team_code)
-        except Team.DoesNotExist:
-            return Response({'error': 'Invalid team code'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Always return generic success to prevent email enumeration
-        generic_response = {
-            'message': 'If this email is not registered, a verification email has been sent.',
-            'teamName': team.name,
-            'emailSent': True,
-            'emailMethod': 'email'
-        }
-
-        try:
-            verification_required = getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False)
-            user = User.objects.create_user(
-                username=email,
-                email=email,
-                password=password,
-                name=name,
-                role=User.Role.MEMBER,
-                status=User.Status.PENDING,
-                team=team,
-                email_verified=not verification_required
-            )
-            if not verification_required:
-                generic_response.update({
-                    'message': 'Registration received. Waiting for leader approval.',
-                    'verificationToken': '',
-                    'verificationUid': '',
-                    'emailSent': False,
-                    'emailMethod': 'none',
-                    'verificationSkipped': True,
-                })
-                return Response(generic_response, status=status.HTTP_201_CREATED)
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            # Deliver token via email only — never in the API response.
-            _send_verification_email(user, token, uid, kind="member")
-            return Response(generic_response, status=status.HTTP_200_OK)
-        except Exception as e:
-            # If email already exists (IntegrityError), still return generic success
-            logger.info(f"Member registration attempt for existing email: {email}")
-            return Response(generic_response, status=status.HTTP_200_OK)
-
-
-class VerifyMemberEmailView(APIView):
-    permission_classes = [permissions.AllowAny]
+class LoginView(PublicView):
     throttle_scope = 'auth'
 
     def post(self, request):
-        token = request.data.get('token')
-        uid = request.data.get('uid')
-        if not token or not uid:
-            return Response({'error': 'Token and UID required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            user_id = force_str(urlsafe_base64_decode(uid))
-            user = User.objects.get(pk=user_id)
-        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
-            return Response({'error': 'Invalid verification link'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not default_token_generator.check_token(user, token):
-            return Response({'error': 'Invalid or expired verification token'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', False):
-            # Verification ON HOLD: idempotent success
-            user.email_verified = True
-            user.save(update_fields=['email_verified'])
-            return Response({
-                'teamName': user.team.name if user.team else '',
-                'message': 'Registration received. Waiting for leader approval.',
-                'verificationSkipped': True,
-            })
-        user.email_verified = True
-        user.save()
-        return Response({
-            'teamName': user.team.name if user.team else '',
-            'message': 'Email verified successfully. Waiting for leader approval.'
-        }, status=status.HTTP_200_OK)
-
-
-class CheckMemberStatusView(APIView):
-    permission_classes = [permissions.AllowAny]
-    throttle_scope = 'auth'
-
-    def post(self, request):
-        email = request.data.get('email')
-        team_code = request.data.get('teamCode')
-        user = User.objects.filter(email=email).first()
-        
+        email = serializers.EmailField().run_validation(request.data.get('email'))
+        password = serializers.CharField(trim_whitespace=False).run_validation(request.data.get('password'))
+        candidates = User.objects.filter(email__iexact=email)
+        candidate = candidates.first() if candidates.count() == 1 else None
+        if candidate:
+            user = authenticate(request, username=candidate.email, password=password)
+        else:
+            # Match the password-hash work performed for an incorrect password.
+            User().set_password(password)
+            user = None
         if not user:
-            # Return generic response to prevent email enumeration
-            return Response({
-                'status': 'not_found',
-                'role': None,
-                'canLogin': False,
-                'teamMatch': False,
-                'message': 'If this email is registered, status information has been sent.'
-            })
-        
-        # Check if team code matches (if provided)
-        team_match = True
-        if team_code and user.team and user.team.code != team_code:
-            team_match = False
-            
-        can_login = user.status == User.Status.APPROVED and team_match
-        
-        return Response({
-            'status': user.status,
-            'role': user.role,
-            'canLogin': can_login,
-            'teamMatch': team_match,
-            'message': 'Team code mismatch' if not team_match else ''
-        })
+            return Response({'error': 'Invalid credentials'}, status=401)
+        if settings.EMAIL_VERIFICATION_REQUIRED and not user.email_verified:
+            return Response({'error': 'Verify your email before signing in.'}, status=403)
+        if not eligible(user):
+            return Response({'error': 'An approved team membership is required.'}, status=403)
+        team_code = request.data.get('teamCode') or request.data.get('team_code')
+        if team_code and team_code != user.team.code:
+            return Response({'error': 'Invalid team code for this account.'}, status=401)
+        refresh = RefreshToken.for_user(user)
+        data = UserSerializer(user).data
+        data.update(team_code=user.team.code, team_name=user.team.name)
+        return Response({'token': str(refresh.access_token), 'refresh': str(refresh), 'user': data})
 
 
-class LoginView(APIView):
+class EligibleTokenRefreshView(TokenRefreshView):
+    serializer_class = EligibleTokenRefreshSerializer
+    authentication_classes = []
+    throttle_scope = 'auth'
+
+
+class LogoutView(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     throttle_scope = 'auth'
 
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        team_code = request.data.get('teamCode')
-        
-        user = authenticate(username=email, password=password)
-        
-        if user:
-            # Verify team code if provided
-            if team_code and user.team and user.team.code != team_code:
-                return Response({'error': 'Invalid team code for this account.'}, status=status.HTTP_401_UNAUTHORIZED)
-
-            if user.role == User.Role.MEMBER and user.status == User.Status.PENDING:
-                return Response({'error': 'Your request is pending leader approval.'}, status=status.HTTP_403_FORBIDDEN)
-            if user.role == User.Role.MEMBER and user.status == User.Status.REJECTED:
-                return Response({'error': 'Your request has been rejected by the leader.'}, status=status.HTTP_403_FORBIDDEN)
-
-            refresh = RefreshToken.for_user(user)
-            user_data = UserSerializer(user).data
-            if user.team:
-                user_data['team_code'] = user.team.code
-                user_data['team_name'] = user.team.name
-            return Response({
-                'token': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': user_data,
-            })
-
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            RefreshToken(request.data.get('refresh', '')).blacklist()
+        except (TokenError, TypeError):
+            pass  # Idempotent logout, including expired tokens.
+        return Response(status=204)
 
 
 class MeView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsApprovedTeamMember]
 
     def get(self, request):
         user_data = UserSerializer(request.user).data
@@ -397,47 +288,61 @@ class MeView(APIView):
         return Response(user_data)
 
 
+def paginated(request, queryset, serializer_class):
+    from rest_framework.pagination import PageNumberPagination
+    paginator = PageNumberPagination()
+    page = paginator.paginate_queryset(queryset, request)
+    return paginator.get_paginated_response(serializer_class(page, many=True).data)
+
+
+def cancel_transfers(member, actor):
+    TeamTransferRequest.objects.filter(member=member, status__in=[
+        TeamTransferRequest.Status.PENDING_CURRENT, TeamTransferRequest.Status.PENDING_FUTURE
+    ]).update(status=TeamTransferRequest.Status.REJECTED, rejected_by=actor,
+              rejected_at=timezone.now(), updated_at=timezone.now())
+
+
 # ---------------------------------------------------------
 # TEAM LIST VIEWS
 # ---------------------------------------------------------
 
 class TeamAllMembersView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsApprovedTeamMember]
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED).annotate(
-            assigned_tasks=Count('assigned_subtasks'),
-            completed_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed'))
+        qs = User.objects.select_related('team').filter(team__code=team_code, status=User.Status.APPROVED).annotate(
+            assigned_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team)),
+            completed_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team, assigned_subtasks__progress='completed'))
         )
-        return Response(UserSerializer(qs, many=True).data)
+        return paginated(request, qs.order_by("date_joined", "pk"), UserSerializer)
 
 class TeamApprovedMembersView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsApprovedTeamMember]
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code, status=User.Status.APPROVED, role=User.Role.MEMBER).annotate(
-            assigned_tasks=Count('assigned_subtasks'),
-            completed_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__status='completed'))
+        qs = User.objects.select_related('team').filter(team__code=team_code, status=User.Status.APPROVED, role=User.Role.MEMBER).annotate(
+            assigned_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team)),
+            completed_tasks=Count('assigned_subtasks', filter=Q(assigned_subtasks__task__team=request.user.team, assigned_subtasks__progress='completed'))
         )
-        return Response(UserSerializer(qs, many=True).data)
+        return paginated(request, qs.order_by("date_joined", "pk"), UserSerializer)
 
 class TeamPendingRequestsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code, status=User.Status.PENDING)
-        return Response(UserSerializer(qs, many=True).data)
+        qs = User.objects.select_related('team').filter(team__code=team_code, status=User.Status.PENDING)
+        return paginated(request, qs.order_by("date_joined", "pk"), UserSerializer)
 
 class TeamRejectedMembersView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     def get(self, request, team_code):
         if not request.user.team or request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(team__code=team_code, status=User.Status.REJECTED)
-        return Response(UserSerializer(qs, many=True).data)
+        qs = User.objects.select_related('team').filter(team__code=team_code, status=User.Status.REJECTED)
+        return paginated(request, qs.order_by("date_joined", "pk"), UserSerializer)
 
 
 # ---------------------------------------------------------
@@ -448,26 +353,30 @@ class ApproveMemberView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     throttle_scope = 'mutation'
 
+    @transaction.atomic
     def post(self, request):
         user_id = request.data.get('userId')
         try:
-            member = User.objects.get(id=user_id, team=request.user.team)
+            member = User.objects.select_for_update().get(id=user_id, team=request.user.team, role=User.Role.MEMBER)
             member.status = User.Status.APPROVED
             member.approved_by = request.user
             member.approved_at = timezone.now()
             member.save()
             return Response({'message': 'Member approved successfully'})
-        except User.DoesNotExist:
+        except (User.DoesNotExist, DjangoValidationError):
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class RejectMemberView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     throttle_scope = 'mutation'
 
+    @transaction.atomic
     def post(self, request):
         user_id = request.data.get('userId')
         try:
-            member = User.objects.get(id=user_id, team=request.user.team)
+            member = User.objects.select_for_update().get(id=user_id, team=request.user.team, role=User.Role.MEMBER)
+            cancel_transfers(member, request.user)
+            release_unfinished(member, request.user.team)
             member.status = User.Status.REJECTED
             member.rejected_by = request.user
             member.rejected_at = timezone.now()
@@ -476,7 +385,7 @@ class RejectMemberView(APIView):
                 'message': 'Member rejected successfully',
                 'user': UserSerializer(member).data
             })
-        except User.DoesNotExist:
+        except (User.DoesNotExist, DjangoValidationError):
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class ApproveRejectedMemberView(APIView):
@@ -490,26 +399,35 @@ class DeleteRejectedMemberView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     throttle_scope = 'mutation'
 
+    @transaction.atomic
     def delete(self, request, user_id):
         try:
-            member = User.objects.get(id=user_id, team=request.user.team, status=User.Status.REJECTED)
-            member.delete()
-            return Response({'message': 'Rejected member deleted'})
-        except User.DoesNotExist:
+            member = User.objects.select_for_update().get(id=user_id, team=request.user.team, role=User.Role.MEMBER, status=User.Status.REJECTED)
+            cancel_transfers(member, request.user)
+            release_unfinished(member, request.user.team)
+            member.team = None
+            member.save(update_fields=['team'])
+            return Response({'message': 'Rejected membership removed'})
+        except (User.DoesNotExist, DjangoValidationError):
             return Response({'error': 'Rejected member not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class RemoveTeamMemberView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
     throttle_scope = 'mutation'
 
+    @transaction.atomic
     def delete(self, request, team_code, user_id):
         if request.user.team.code != team_code:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            member = User.objects.get(id=user_id, team=request.user.team, role=User.Role.MEMBER)
-            member.delete() # Hard delete for simplicity, or we could just set team=None
+            member = User.objects.select_for_update().get(id=user_id, team=request.user.team, role=User.Role.MEMBER)
+            cancel_transfers(member, request.user)
+            release_unfinished(member, request.user.team)
+            member.team = None
+            member.status = User.Status.REJECTED
+            member.save(update_fields=['team', 'status'])
             return Response({'message': 'Member removed dynamically'})
-        except User.DoesNotExist:
+        except (User.DoesNotExist, DjangoValidationError):
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -518,45 +436,49 @@ class RemoveTeamMemberView(APIView):
 # ---------------------------------------------------------
 
 class RequestTransferView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsApprovedTeamMember]
     throttle_scope = 'mutation'
 
+    @transaction.atomic
     def post(self, request):
+        member = User.objects.select_for_update().get(pk=request.user.pk)
+        if not eligible(member):
+            raise PermissionDenied('Membership changed.')
         future_team_code = request.data.get('future_team_code')
         try:
             future_team = Team.objects.get(code=future_team_code)
         except Team.DoesNotExist:
             return Response({'error': 'Invalid future team code'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if request.user.role != User.Role.MEMBER:
             return Response({'error': 'Only team members can request a transfer.'}, status=status.HTTP_403_FORBIDDEN)
 
-        if request.user.status != User.Status.APPROVED:
+        if member.status != User.Status.APPROVED:
             return Response({'error': 'Your account must be approved before requesting a transfer.'}, status=status.HTTP_403_FORBIDDEN)
 
         if not future_team.leader:
             return Response({'error': 'The target team has no leader yet. Please try again later.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not request.user.team:
+        if not member.team:
              return Response({'error': 'You must be in a team to request a transfer.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if request.user.team == future_team:
+        if member.team == future_team:
             return Response({'error': 'You are already in this team.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if there's already a pending request
-        if TeamTransferRequest.objects.filter(member=request.user, status__in=[TeamTransferRequest.Status.PENDING_CURRENT, TeamTransferRequest.Status.PENDING_FUTURE]).exists():
+        if TeamTransferRequest.objects.filter(member=member, status__in=[TeamTransferRequest.Status.PENDING_CURRENT, TeamTransferRequest.Status.PENDING_FUTURE]).exists():
              return Response({'error': 'You already have a pending transfer request.'}, status=status.HTTP_400_BAD_REQUEST)
 
         transfer_request = TeamTransferRequest.objects.create(
-            member=request.user,
-            current_team=request.user.team,
+            member=member,
+            current_team=member.team,
             future_team=future_team,
             status=TeamTransferRequest.Status.PENDING_CURRENT
         )
         return Response(TeamTransferRequestSerializer(transfer_request).data, status=status.HTTP_201_CREATED)
 
 class PendingTransfersView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsApprovedTeamMember]
 
     def get(self, request):
         user = request.user
@@ -568,74 +490,42 @@ class PendingTransfersView(APIView):
                 Q(current_team__leader=user, status=TeamTransferRequest.Status.PENDING_CURRENT) |
                 Q(future_team__leader=user, status=TeamTransferRequest.Status.PENDING_FUTURE)
             ).order_by('-created_at')
-        
-        return Response(TeamTransferRequestSerializer(qs, many=True).data)
+
+        return paginated(request, qs.select_related('member', 'current_team', 'future_team').order_by('-created_at', '-pk'), TeamTransferRequestSerializer)
 
 class ProcessTransferView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTeamLeader]
+    permission_classes = [IsTeamLeader]
     throttle_scope = 'mutation'
 
+    @transaction.atomic
     def post(self, request, pk):
-        action = request.data.get('action') # 'approve' or 'reject'
-        try:
-            transfer = TeamTransferRequest.objects.get(pk=pk)
-        except TeamTransferRequest.DoesNotExist:
-            return Response({'error': 'Transfer request not found'}, status=status.HTTP_404_NOT_FOUND)
-
+        action = request.data.get('action')
+        if action not in ('approve', 'reject'):
+            raise ValidationError({'action': 'Choose approve or reject.'})
+        snapshot = TeamTransferRequest.objects.filter(pk=pk).first()
+        if not snapshot:
+            return Response({'error': 'Transfer request not found'}, status=404)
+        member = User.objects.select_for_update().get(pk=snapshot.member_id)
+        transfer = TeamTransferRequest.objects.select_for_update(of=('self',)).select_related('current_team', 'future_team').get(pk=pk)
+        expected_team = transfer.current_team if transfer.status == TeamTransferRequest.Status.PENDING_CURRENT else transfer.future_team
+        if transfer.status not in (TeamTransferRequest.Status.PENDING_CURRENT, TeamTransferRequest.Status.PENDING_FUTURE):
+            raise Conflict('This transfer is no longer pending.')
+        if expected_team.leader_id != request.user.pk:
+            raise PermissionDenied('You are not the leader for this approval stage.')
+        if member.team_id != transfer.current_team_id or member.status != User.Status.APPROVED:
+            raise Conflict('Membership changed. This transfer cannot proceed.')
         if action == 'reject':
-            if transfer.status == TeamTransferRequest.Status.PENDING_CURRENT:
-                if transfer.current_team.leader != request.user:
-                    return Response({'error': 'You are not the leader of the current team.'}, status=status.HTTP_403_FORBIDDEN)
-            elif transfer.status == TeamTransferRequest.Status.PENDING_FUTURE:
-                if transfer.future_team.leader != request.user:
-                    return Response({'error': 'You are not the leader of the future team.'}, status=status.HTTP_403_FORBIDDEN)
-            else:
-                return Response({'error': 'This transfer request is no longer pending.'}, status=status.HTTP_400_BAD_REQUEST)
-
             transfer.status = TeamTransferRequest.Status.REJECTED
             transfer.rejected_by = request.user
             transfer.rejected_at = timezone.now()
-            transfer.save()
-            return Response({'message': 'Transfer rejected'})
-
-        if action == 'approve':
-            if transfer.status == TeamTransferRequest.Status.PENDING_CURRENT:
-                if transfer.current_team.leader != request.user:
-                    return Response({'error': 'You are not the leader of the current team.'}, status=status.HTTP_403_FORBIDDEN)
-                
-                with transaction.atomic():
-                    # Lock the transfer row to prevent race conditions
-                    transfer = TeamTransferRequest.objects.select_for_update().get(pk=pk)
-                    if transfer.status != TeamTransferRequest.Status.PENDING_CURRENT:
-                        return Response({'error': 'This transfer request is no longer pending.'}, status=status.HTTP_400_BAD_REQUEST)
-                    
-                    transfer.status = TeamTransferRequest.Status.PENDING_FUTURE
-                    transfer.current_lead_approved_at = timezone.now()
-                    transfer.save()
-                return Response({'message': 'Approved by current lead. Waiting for future lead approval.'})
-
-            elif transfer.status == TeamTransferRequest.Status.PENDING_FUTURE:
-                if transfer.future_team.leader != request.user:
-                    return Response({'error': 'You are not the leader of the future team.'}, status=status.HTTP_403_FORBIDDEN)
-                
-                with transaction.atomic():
-                    # Lock the transfer row and related objects to prevent race conditions
-                    transfer = TeamTransferRequest.objects.select_for_update().get(pk=pk)
-                    if transfer.status != TeamTransferRequest.Status.PENDING_FUTURE:
-                        return Response({'error': 'This transfer request is no longer pending.'}, status=status.HTTP_400_BAD_REQUEST)
-                    
-                    transfer.status = TeamTransferRequest.Status.APPROVED
-                    transfer.future_lead_approved_at = timezone.now()
-                    transfer.save()
-                    
-                    # Perform the move
-                    member = transfer.member
-                    member.team = transfer.future_team
-                    # Unassign from current tasks
-                    from tasks.models import Subtask
-                    Subtask.objects.filter(assigned_to=member, status__in=[Subtask.Status.ASSIGNED, Subtask.Status.TAKEN]).update(assigned_to=None, status=Subtask.Status.AVAILABLE, progress='not_started')
-                    member.save()
-                
-                return Response({'message': 'Transfer approved successfully. Member has been moved.'})
-
-        return Response({'error': 'Invalid action or state'}, status=status.HTTP_400_BAD_REQUEST)
+        elif transfer.status == TeamTransferRequest.Status.PENDING_CURRENT:
+            transfer.status = TeamTransferRequest.Status.PENDING_FUTURE
+            transfer.current_lead_approved_at = timezone.now()
+        else:
+            release_unfinished(member, transfer.current_team)
+            member.team = transfer.future_team
+            member.save(update_fields=['team'])
+            transfer.status = TeamTransferRequest.Status.APPROVED
+            transfer.future_lead_approved_at = timezone.now()
+        transfer.save()
+        return Response({'message': 'Transfer updated.', 'status': transfer.status})

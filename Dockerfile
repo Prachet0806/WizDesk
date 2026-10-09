@@ -1,45 +1,16 @@
-# Dockerfile for WizDesk Backend
-# Builds a production-ready container for the Django API + static frontend
-
 FROM python:3.11-slim
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --shell /bin/bash appuser
-
-# Set work directory
 WORKDIR /app
-
-# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Copy project
-COPY wizdesk_backend/ ./wizdesk_backend/
-COPY frontend/ ./frontend/
-COPY build.sh ./
-COPY .env.example ./
-
-# Create staticfiles directory and collect static
+RUN pip install -r requirements.txt
+COPY --chown=appuser:appuser wizdesk_backend/ ./wizdesk_backend/
+COPY --chown=appuser:appuser frontend/ ./frontend/
+COPY gunicorn.conf.py ./
 WORKDIR /app/wizdesk_backend
-RUN python manage.py collectstatic --no-input
-
-# Switch to non-root user
+# Build-only secret; runtime must supply its own SECRET_KEY and DATABASE_URL.
+RUN SECRET_KEY=collectstatic-build-only-not-a-runtime-secret DATABASE_URL=sqlite:///:memory: python manage.py collectstatic --noinput
 USER appuser
-
-# Expose port
 EXPOSE 8000
-
-# Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "wizdesk_backend.wsgi:application"]
+CMD ["gunicorn", "--config", "/app/gunicorn.conf.py", "wizdesk_backend.wsgi:application"]

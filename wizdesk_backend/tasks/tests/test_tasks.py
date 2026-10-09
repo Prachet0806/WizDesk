@@ -1,13 +1,3 @@
-import os
-os.environ['ALLOWED_HOSTS'] = 'testserver,localhost,127.0.0.1'
-
-import sys
-sys.path.insert(0, r"C:\Users\prach\Documents\WIZDESK\wizdesk_backend")
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wizdesk_backend.settings')
-
-import django
-django.setup()
-
 from django.test import TransactionTestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -54,8 +44,8 @@ class TaskCRUDTests(TransactionTestCase):
         other_member = User.objects.create_user(username="om@test.com", email="om@test.com", password="p",
                                                  name="Other Member", role=User.Role.MEMBER, status=User.Status.APPROVED, team=other_team)
         r = self.lc.post('/api/tasks/', {'title': 'Cross', 'subtasks': [{'title': 'S', 'assigned_to': str(other_member.id)}]}, format='json')
-        self.assertEqual(r.status_code, 201)
-        self.assertIsNone(r.data['subtasks'][0]['assigned_to'])
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Task.objects.filter(title='Cross').exists())
 
     def test_task_detail_put_member_blocked(self):
         r = self.lc.post('/api/tasks/', {'title': 'T1'}, format='json')

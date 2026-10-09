@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
+  },
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/frontend/api.test.cjs",
+    "test:browser": "playwright test"
+  }
+}

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -6,11 +7,11 @@
     <meta name="robots" content="noindex, nofollow">
     <title>Page Not Found — WizDesk</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="css/tokens.css">
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/auth.css">
-    <script src="js/theme.js"></script>
+    <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <script src="{% static 'js/theme.js' %}"></script>
     <style>
         /* 404 Page — minimal, on-brand */
         .error-page {
@@ -153,7 +154,7 @@
         </div>
     </main>
 
-    <script src="js/icons.js" defer></script>
+    <script src="{% static 'js/icons.js' %}" defer></script>
     <script>
         // Set focus on the home link for accessibility
         document.addEventListener('DOMContentLoaded', function() {

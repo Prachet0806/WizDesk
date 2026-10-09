@@ -1,7 +1,9 @@
+> Historical assessment: behavior has changed. See README.md for current architecture, verification commands and rollout requirements.
+
 # Frontend-Backend Integration Analysis
 
 ## The Disconnect
-The frontend relies heavily on inline HTML/JS scripts doing explicit `fetch` calls to legacy Node.js/Express routes. The new Django backend (implemented via DRF ViewSets) exposed standard RESTful routes, which don't match the frontend. 
+The frontend relies heavily on inline HTML/JS scripts doing explicit `fetch` calls to legacy Node.js/Express routes. The new Django backend (implemented via DRF ViewSets) exposed standard RESTful routes, which don't match the frontend.
 
 Rather than changing the hundreds of `fetch` calls and response parsing logic across multiple HTML files, we will **refactor the Django views and urls to match the frontend expectations**.
 

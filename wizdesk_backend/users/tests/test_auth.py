@@ -1,13 +1,3 @@
-import os
-os.environ['ALLOWED_HOSTS'] = 'testserver,localhost,127.0.0.1'
-
-import sys
-sys.path.insert(0, r"C:\Users\prach\Documents\WIZDESK\wizdesk_backend")
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wizdesk_backend.settings')
-
-import django
-django.setup()
-
 from django.test import TransactionTestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -56,7 +46,7 @@ class AuthFlowTests(TransactionTestCase):
         nc = APIClient()
         auth(nc, noteam)
         r = nc.post('/api/tasks/', {'title': 'NoTeam Task'}, format='json')
-        self.assertIn(r.status_code, (400, 403))
+        self.assertEqual(r.status_code, 401)
 
     def test_member_cannot_access_other_team_tasks(self):
         other_team = Team.objects.create(code="OT001", name="Other")

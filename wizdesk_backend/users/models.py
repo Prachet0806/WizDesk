@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models.functions import Lower
 
 class Team(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -28,22 +29,25 @@ class User(AbstractUser):
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEMBER)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    
+
     # We use email as the primary login field
     email = models.EmailField(unique=True)
-    
+
     team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, related_name='members')
     team_name = models.CharField(max_length=255, null=True, blank=True) # For leaders who haven't created a team yet
-    
+
     approved_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_users')
     approved_at = models.DateTimeField(null=True, blank=True)
     rejected_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='rejected_users')
     rejected_at = models.DateTimeField(null=True, blank=True)
-    
+
     email_verified = models.BooleanField(default=False)
-    
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'name'] # username is still required by AbstractUser but we login via email
+
+    class Meta:
+        constraints = [models.UniqueConstraint(Lower('email'), name='user_email_case_insensitive_unique')]
 
     def __str__(self):
         return f"{self.name} ({self.email})"
@@ -59,14 +63,14 @@ class TeamTransferRequest(models.Model):
     member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transfer_requests')
     current_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='outgoing_transfers')
     future_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='incoming_transfers')
-    
+
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING_CURRENT)
-    
+
     current_lead_approved_at = models.DateTimeField(null=True, blank=True)
     future_lead_approved_at = models.DateTimeField(null=True, blank=True)
     rejected_at = models.DateTimeField(null=True, blank=True)
     rejected_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='rejected_transfers')
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

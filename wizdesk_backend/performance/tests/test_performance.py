@@ -1,13 +1,3 @@
-import os
-os.environ['ALLOWED_HOSTS'] = 'testserver,localhost,127.0.0.1'
-
-import sys
-sys.path.insert(0, r"C:\Users\prach\Documents\WIZDESK\wizdesk_backend")
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wizdesk_backend.settings')
-
-import django
-django.setup()
-
 from django.test import TransactionTestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
