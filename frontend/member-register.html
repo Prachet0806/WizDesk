@@ -656,13 +656,22 @@
                     return;
                 }
 
+                // Verification required: token is delivered by email, never in
+                // the API response. Do not auto-verify here.
+                if (!sendResult.verificationToken || !sendResult.verificationUid) {
+                    memberRegisterForm.style.display = 'none';
+                    successMessage.style.display = 'block';
+                    return;
+                }
+
                 const token = sendResult.verificationToken;
+                const uid = sendResult.verificationUid;
 
                 // Step 2: Directly Verify (Completes registration)
                 const verifyResponse = await fetch(`${API_BASE}/auth/verify-member-email/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ token, uid })
                 });
 
                 const verifyResult = await verifyResponse.json();

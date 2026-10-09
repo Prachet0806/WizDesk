@@ -1,4 +1,3 @@
-import base64
 import random
 import string
 import re
@@ -7,6 +6,7 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -22,6 +22,35 @@ from .serializers import UserSerializer, TeamTransferRequestSerializer
 
 
 logger = logging.getLogger(__name__)
+
+
+def _send_verification_email(user, token, uid, kind="leader"):
+    """Send the email-verification link. Never raises — logs on failure.
+
+    Tokens are delivered via email only, never in API responses, so a
+    leaked response cannot be used to verify an address the attacker
+    does not control.
+    """
+    frontend = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+    if frontend:
+        verify_path = 'register-leader.html' if kind == "leader" else 'member-register.html'
+        link = f"{frontend}/{verify_path}?uid={uid}&token={token}"
+    else:
+        link = f"(no FRONTEND_URL configured) uid={uid} token={token}"
+    subject = "Verify your WizDesk email"
+    message = (
+        f"Hi {user.name or user.email},\n\n"
+        f"Please verify your email address by opening this link:\n{link}\n\n"
+        f"This link expires. If you did not register, ignore this email."
+    )
+    try:
+        send_mail(subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', None), [user.email], fail_silently=False)
+        logger.info("Verification email queued for %s", user.email)
+        return True
+    except Exception:
+        # Console backend or missing SMTP in dev still surfaces the link in logs.
+        logger.exception("Failed to send verification email to %s; link: %s", user.email, link)
+        return False
 
 
 class HealthCheckView(APIView):
@@ -122,10 +151,8 @@ class SendLeaderVerificationView(APIView):
                 return Response(generic_response, status=status.HTTP_201_CREATED)
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-            generic_response.update({
-                'verificationToken': token,
-                'verificationUid': uid,
-            })
+            # Deliver token via email only — never in the API response.
+            _send_verification_email(user, token, uid, kind="leader")
             return Response(generic_response, status=status.HTTP_200_OK)
         except Exception as e:
             # If email already exists (IntegrityError), still return generic success
@@ -244,10 +271,8 @@ class SendMemberVerificationView(APIView):
                 return Response(generic_response, status=status.HTTP_201_CREATED)
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-            generic_response.update({
-                'verificationToken': token,
-                'verificationUid': uid,
-            })
+            # Deliver token via email only — never in the API response.
+            _send_verification_email(user, token, uid, kind="member")
             return Response(generic_response, status=status.HTTP_200_OK)
         except Exception as e:
             # If email already exists (IntegrityError), still return generic success

@@ -597,13 +597,21 @@
         const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 
         // XSS prevention: escape HTML special chars for safe interpolation
+        // NOTE: this is for HTML *text/attribute* context only. Never
+        // interpolate user data into inline JS strings (onclick="...").
         function escapeHtml(value) {
             return String(value ?? '')
-                .replace(/&/g, '&')
-                .replace(/</g, '<')
-                .replace(/>/g, '>')
-                .replace(/"/g, '"')
-                .replace(/'/g, '&#039;');
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;')
+                .replace(/`/g, '&#x60;');
+        }
+        // Attribute-context escaping (quotes + angle brackets). Use for
+        // data-* attributes that carry user-controlled strings.
+        function escapeAttr(value) {
+            return escapeHtml(value).replace(/\//g, '&#x2F;');
         }
         function syncThemeChrome() {
             const isDark = window.WizDeskTheme ? window.WizDeskTheme.isDark() : document.documentElement.getAttribute('data-theme') === 'dark';
@@ -1997,7 +2005,7 @@ function showLogoutConfirmation() {
                     </div>
                     ${(member.role === 'member' || member.role === 'MEMBER') ? `
                         <div class="member-actions">
-                            <button class="btn btn-sm btn-danger" onclick="deleteMember('${member.id}', '${escapeHtml(member.name)}')">
+                            <button class="btn btn-sm btn-danger" data-member-id="${escapeAttr(member.id)}" data-member-name="${escapeAttr(member.name)}" onclick="deleteMemberFromEl(this)">
                                 Remove
                             </button>
                         </div>
@@ -2010,7 +2018,6 @@ function showLogoutConfirmation() {
             if (!confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
                 return;
             }
-
             try {
                 const response = await fetch(`${API_BASE}/auth/team/${currentUser.team_code}/member/${memberId}/`, {
                     method: 'DELETE',
@@ -2031,6 +2038,13 @@ function showLogoutConfirmation() {
                 console.error('Error deleting member:', error);
                 showMessage('Failed to remove member', 'error');
             }
+        }
+
+        // Secure wrapper: user-controlled name travels via data-*
+        // attributes (HTML-escaped at render), never interpolated
+        // into an inline JS string.
+        function deleteMemberFromEl(el) {
+            deleteMember(el.dataset.memberId, el.dataset.memberName);
         }
 
         // Task Creation Functions - UPDATED with subtask description and member search
@@ -2847,7 +2861,7 @@ function showLogoutConfirmation() {
             }
 
             list.innerHTML = notifications.map(n => `
-                <div class="notification-item notif-item ${n.read ? '' : 'unread'}" onclick="markAsRead(${n.id})">
+                <div class="notification-item notif-item ${n.read ? '' : 'unread'}" data-nid="${Number(n.id) || 0}" onclick="markAsReadFromEl(this)">
                     <div class="notification-item-icon notif-item-icon">
                         <i data-lucide="${n.type === 'request' ? 'user-check' : n.type === 'transfer' ? 'repeat' : 'bell'}"></i>
                     </div>
@@ -2892,7 +2906,8 @@ function showLogoutConfirmation() {
         });
 
         function markAsRead(id) {
-            const notif = notifications.find(n => n.id === id);
+            const nid = Number(id);
+            const notif = notifications.find(n => Number(n.id) === nid);
             if (notif) {
                 notif.read = true;
                 if (currentUser && currentUser.id) {
@@ -2911,6 +2926,10 @@ function showLogoutConfirmation() {
             }
             updateNotifUI();
             updateYellowDots();
+        }
+
+        function markAsReadFromEl(el) {
+            markAsRead(el.dataset.nid);
         }
 
         function showToastNotification(title, message, type = 'general') {

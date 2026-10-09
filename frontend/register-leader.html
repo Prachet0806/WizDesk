@@ -631,13 +631,25 @@
                     return;
                 }
 
+                // Verification required: token is delivered by email, never in
+                // the API response. Do not auto-verify here.
+                if (!sendResult.verificationToken || !sendResult.verificationUid) {
+                    leaderRegisterForm.style.display = 'none';
+                    successMessage.style.display = 'block';
+                    document.getElementById('generatedTeamCode').textContent = '—';
+                    document.getElementById('emailStatus').innerHTML =
+                        '<div class="email-success">If this email is not registered, a verification email has been sent. Please check your inbox to continue.</div>';
+                    return;
+                }
+
                 const token = sendResult.verificationToken;
+                const uid = sendResult.verificationUid;
 
                 // Step 2: Directly Verify (Completes registration and creates team)
                 const verifyResponse = await fetch(`${API_BASE}/auth/verify-email/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ token, uid })
                 });
 
                 const verifyResult = await verifyResponse.json();
@@ -668,19 +680,19 @@
 
             // Show email status if applicable, otherwise hide
             const emailStatus = document.getElementById('emailStatus');
+            emailStatus.textContent = '';
+            const statusDiv = document.createElement('div');
             if (result.emailSent && result.emailMethod === 'email') {
-                emailStatus.innerHTML = `
-                    <div class="email-success">
-                        Team code has been sent to your email address: <strong>${result.user.email}</strong>
-                    </div>
-                `;
+                statusDiv.className = 'email-success';
+                statusDiv.appendChild(document.createTextNode('Team code has been sent to your email address: '));
+                const strong = document.createElement('strong');
+                strong.textContent = (result.user && result.user.email) || '';
+                statusDiv.appendChild(strong);
             } else {
-                emailStatus.innerHTML = `
-                    <div class="email-warning">
-                        Registration complete. Please save your team code above.
-                    </div>
-                `;
+                statusDiv.className = 'email-warning';
+                statusDiv.textContent = 'Registration complete. Please save your team code above.';
             }
+            emailStatus.appendChild(statusDiv);
         }
 
         // Event Listeners

@@ -58,6 +58,14 @@ services:
         value: "1.0.0"
       - key: EMAIL_VERIFICATION_REQUIRED
         value: "False"
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: FRONTEND_URL
+        value: ""
     healthCheckPath: /health/
     autoDeploy: true
     plan: free  # or starter for production

@@ -74,7 +74,7 @@ class TeamTransferRequest(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['member'],
-                condition=models.Q(status__in=[Status.PENDING_CURRENT, Status.PENDING_FUTURE]),
+                condition=models.Q(status__in=["PENDING_CURRENT", "PENDING_FUTURE"]),
                 name='unique_pending_transfer_per_member'
             ),
             models.CheckConstraint(
