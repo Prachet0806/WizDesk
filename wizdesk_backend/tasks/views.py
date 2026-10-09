@@ -32,6 +32,8 @@ def _valid_assignee(raw, team):
 
 class TaskCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
+    throttle_scope = 'mutation'
+
     def post(self, request):
         team = request.user.team
         title = (request.data.get('title') or '').strip()
@@ -128,6 +130,7 @@ class TeamTasksStatusView(generics.ListAPIView):
 
 class TaskDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
+    throttle_scope = 'mutation'
     
     def get_object(self, task_id, request):
         try:
@@ -194,6 +197,8 @@ class UserAssignedSubtasksView(APIView):
 
 class TakeSubtaskView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
+    throttle_scope = 'mutation'
+
     def post(self, request, subtask_id):
         try:
             subtask = Subtask.objects.get(id=subtask_id, task__team=request.user.team)
@@ -213,6 +218,8 @@ class TakeSubtaskView(APIView):
 
 class UpdateSubtaskProgressView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
+    throttle_scope = 'mutation'
+
     def post(self, request, subtask_id):
         try:
             subtask = Subtask.objects.get(id=subtask_id, task__team=request.user.team)
@@ -233,6 +240,7 @@ class UpdateSubtaskProgressView(APIView):
 
 class SubtaskDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsTeamMember]
+    throttle_scope = 'mutation'
     
     def get_object(self, subtask_id, request):
         try:

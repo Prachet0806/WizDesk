@@ -26,14 +26,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-it-in-prod')
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'FALSE'
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+
+# Render injects RENDER_EXTERNAL_HOSTNAME automatically
+render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+if render_hostname:
+    ALLOWED_HOSTS.append(render_hostname)
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 
 # Application definition
@@ -69,9 +83,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True # For development. Configure properly for production.
+CORS_ALLOW_ALL_ORIGINS = (
+    os.getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"
+)
 
-ROOT_URLCONF = 'wizdesk_backend.urls'
+CORS_ALLOW_CREDENTIALS = (
+    os.getenv("CORS_ALLOW_CREDENTIALS", "False").lower() == "true"
+)
 
 TEMPLATES = [
     {
@@ -117,11 +135,6 @@ SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
-# CORS (explicit, not wildcard)
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else []
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True') == 'True'
-
 # Application version
 APP_VERSION = os.getenv('APP_VERSION', '1.0.0')
 
@@ -136,6 +149,16 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'auth': '10/minute',
+        'registration': '5/minute',
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
@@ -143,10 +166,17 @@ REST_FRAMEWORK = {
 # JWT Config
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME_MINUTES', '15'))),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME_DAYS', '1'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME_DAYS', '7'))),
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'ROTATE_REFRESH_TOKENS': os.getenv('JWT_ROTATE_REFRESH_TOKENS', 'False') == 'True',
-    'BLACKLIST_AFTER_ROTATION': os.getenv('JWT_BLACKLIST_AFTER_ROTATION', 'False') == 'True',
+    'ROTATE_REFRESH_TOKENS': os.getenv('JWT_ROTATE_REFRESH_TOKENS', 'True') == 'True',
+    'BLACKLIST_AFTER_ROTATION': os.getenv('JWT_BLACKLIST_AFTER_ROTATION', 'True') == 'True',
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': os.getenv('SIMPLE_JWT_SIGNING_KEY', os.getenv('SECRET_KEY')),
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
 }
 
 # Email verification is currently ON HOLD — registrations auto-verify.

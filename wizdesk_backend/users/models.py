@@ -70,5 +70,18 @@ class TeamTransferRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['member'],
+                condition=models.Q(status__in=[Status.PENDING_CURRENT, Status.PENDING_FUTURE]),
+                name='unique_pending_transfer_per_member'
+            ),
+            models.CheckConstraint(
+                check=~models.Q(current_team=models.F('future_team')),
+                name='transfer_different_teams'
+            ),
+        ]
+
     def __str__(self):
         return f"Transfer: {self.member.name} to {self.future_team.name}"
