@@ -18,6 +18,7 @@ lib/
 lib64/
 *.manifest
 *.spec
+node_modules/
 # Virtual environment
 venv/
 .venv/
@@ -48,6 +49,5 @@ Thumbs.db
 *.log
 
 # Browser testing
-node_modules/
 playwright-report/
 test-results/
