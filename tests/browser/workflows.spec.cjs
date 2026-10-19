@@ -38,7 +38,7 @@ test('edit modal renders hostile text safely and saves additions and removals to
   await expect(modal).toHaveAttribute('role', 'dialog');
   await expect(modal.locator('.edit-subtask-input')).toHaveValue('<img src=x onerror="window.__xss=true">');
   await expect(modal.locator('.edit-subtask-desc')).toHaveValue('</textarea><img src=x onerror="window.__xss=true">');
-  await expect(modal.locator('.edit-subtask-deadline')).toHaveValue('2030-02-01T10:00:00');
+  await expect(modal.locator('.edit-subtask-deadline')).toHaveValue('2030-02-01T10:00');
   await expect(modal.locator('img')).toHaveCount(0);
   expect(await page.evaluate(() => window.__xss)).toBeUndefined();
   await modal.getByRole('button', {name: 'Remove', exact: true}).click();
@@ -131,7 +131,12 @@ test('leader sees completed parent tasks with no subtasks in management and Comp
   await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed without children regression'})).toBeVisible();
 
   const childTask = await page.evaluate(async () => {
-    const members = await (await fetch('/api/auth/team/BROWSE/approved-members/')).json();
+    const membersResponse = await fetch('/api/auth/team/BROWSE/members/');
+    const payload = await membersResponse.json();
+    const members = Array.isArray(payload) ? payload : payload.results;
+    if (!membersResponse.ok || !Array.isArray(members) || members.length === 0) {
+      throw new Error('Expected an approved team member in browser fixtures');
+    }
     const response = await fetch('/api/tasks/', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
       title: 'Completed while tab stays open', subtasks: [{title: 'Finish me', assigned_to: members[0].id}]
     })});

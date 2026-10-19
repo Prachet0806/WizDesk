@@ -75,4 +75,4 @@ jobs:
         if: failure()
         with:
           name: browser-failures
-          path: tests/test-results/
+          path: test-results/

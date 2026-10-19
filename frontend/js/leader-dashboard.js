@@ -941,7 +941,7 @@ function showLogoutConfirmation() {
                     <div class="edit-subtask-item" data-subtask-id="${subtask.id}">
                         <input type="text" class="edit-subtask-input" aria-label="Subtask title" value="${escapeAttr(subtask.title)}" placeholder="Subtask title" required>
                         <textarea class="edit-subtask-desc" aria-label="Subtask description" placeholder="Subtask description">${escapeHtml(subtask.description || '')}</textarea>
-                        <input type="datetime-local" class="edit-subtask-deadline" aria-label="Subtask deadline" value="${deadlineDate}" title="Due Date (Optional)">
+                        <input type="datetime-local" step="1" class="edit-subtask-deadline" aria-label="Subtask deadline" value="${deadlineDate}" title="Due Date (Optional)">
                         <select class="form-select edit-subtask-priority" aria-label="Subtask priority">
                             <option value="low" ${subtask.priority === 'low' ? 'selected' : ''}>Low</option>
                             <option value="medium" ${subtask.priority === 'medium' || !subtask.priority ? 'selected' : ''}>Medium</option>
@@ -1347,7 +1347,7 @@ function showLogoutConfirmation() {
                     <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
                     <div class="subtask-field">
                         <label class="subtask-field-label">Deadline</label>
-                        <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                        <input type="datetime-local" step="1" class="subtask-deadline" title="Due Date (Optional)">
                     </div>
                     <div class="subtask-field">
                         <label class="subtask-field-label">Priority</label>
@@ -1490,7 +1490,7 @@ function showLogoutConfirmation() {
                 <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
                 <div class="subtask-field">
                     <label class="subtask-field-label">Deadline</label>
-                    <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                    <input type="datetime-local" step="1" class="subtask-deadline" title="Due Date (Optional)">
                 </div>
                 <div class="subtask-field">
                     <label class="subtask-field-label">Priority</label>
@@ -1588,7 +1588,7 @@ function showLogoutConfirmation() {
                             <textarea class="subtask-desc" placeholder="Subtask description (Optional)"></textarea>
                             <div class="subtask-field">
                                 <label class="subtask-field-label">Deadline</label>
-                                <input type="datetime-local" class="subtask-deadline" title="Due Date (Optional)">
+                                <input type="datetime-local" step="1" class="subtask-deadline" title="Due Date (Optional)">
                             </div>
                             <div class="subtask-field">
                                 <label class="subtask-field-label">Priority</label>

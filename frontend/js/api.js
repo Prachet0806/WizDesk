@@ -154,7 +154,14 @@
   };
   window.fetch = request;
   window.WizDeskAPI = {request, poll, logout, initialize, errorMessage, toLocalInput,
-    toUTC: (value, originalValue) => !value ? null : (originalValue && value === toLocalInput(originalValue) ? originalValue : new Date(value).toISOString())};
+    toUTC: (value, originalValue) => {
+      if (!value) return null;
+      if (originalValue) {
+        const originalLocal = toLocalInput(originalValue);
+        if (value === originalLocal || (originalLocal.endsWith(':00') && value === originalLocal.slice(0, 16))) return originalValue;
+      }
+      return new Date(value).toISOString();
+    }};
   window.addEventListener('storage', event => {
     if (event.key === 'user' && !event.newValue && location.pathname.includes('dashboard')) {clearSession(); location.assign('/index.html');}
   });

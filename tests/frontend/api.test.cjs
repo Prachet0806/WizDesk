@@ -165,6 +165,10 @@ test('datetime-local round trips preserve seconds and unchanged milliseconds in 
   assert.match(local, /:45$/);
   assert.equal(app.api.toUTC(local, value), value);
   assert.equal(app.api.toUTC(local.slice(0, -2) + '46', value), '2030-02-01T04:30:46.000Z');
+  const minuteValue = '2030-02-01T04:30:00.789Z';
+  const minuteLocal = app.api.toLocalInput(minuteValue);
+  assert.equal(app.api.toUTC(minuteLocal.slice(0, 16), minuteValue), minuteValue);
+  assert.equal(app.api.toUTC(minuteLocal.slice(0, 16) + ':01', minuteValue), '2030-02-01T04:30:01.000Z');
 });
 
 test('polling grows its interval with request/page count', async () => {
