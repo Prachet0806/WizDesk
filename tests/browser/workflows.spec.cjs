@@ -143,10 +143,13 @@ test('leader sees completed parent tasks with no subtasks in management and Comp
     return response.json();
   });
   await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed while tab stays open'})).toHaveCount(0);
-  const completion = await page.evaluate(async id => fetch(`/api/tasks/subtask/${id}/progress/`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({progress: 'completed'})
-  }), childTask.subtasks[0].id);
-  expect(completion.ok).toBeTruthy();
+  const completion = await page.evaluate(async id => {
+    const response = await fetch(`/api/tasks/subtask/${id}/progress/`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({progress: 'completed'})
+    });
+    return {ok: response.ok, status: response.status, body: await response.json().catch(() => null)};
+  }, childTask.subtasks[0].id);
+  expect(completion.ok, JSON.stringify(completion)).toBeTruthy();
   await page.evaluate(() => loadTeamData());
   await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed while tab stays open'})).toBeVisible();
 });
