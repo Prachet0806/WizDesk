@@ -429,6 +429,7 @@ function showLogoutConfirmation() {
                     isInitialLoad = false;
                     displayRecentTasks();
                     updateYellowDots();
+                    updateTaskDisplays();
                 } else {
                     console.error('Failed to load tasks');
                     allTasks = [];
@@ -492,7 +493,7 @@ function showLogoutConfirmation() {
         }
 
         function calculateProgress(task) {
-            if (task.subtasks.length === 0) return 0;
+            if (task.subtasks.length === 0) return task.status === 'completed' ? 100 : 0;
             const completed = task.subtasks.filter(st => st.status === 'completed').length;
             return Math.round((completed / task.subtasks.length) * 100);
         }
@@ -500,16 +501,12 @@ function showLogoutConfirmation() {
         function updateDashboardStats() {
             document.getElementById('totalTasks').textContent = allTasks.length;
             
-            const activeTasks = allTasks.filter(task => 
-                task.subtasks.some(subtask => subtask.status !== 'completed')
-            ).length;
+            const activeTasks = allTasks.filter(task => task.status === 'active').length;
             document.getElementById('activeTasks').textContent = activeTasks;
             
             document.getElementById('teamMembers').textContent = teamMembers.length;
             
-            const completedTasks = allTasks.filter(task => 
-                task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed')
-            ).length;
+            const completedTasks = allTasks.filter(task => task.status === 'completed').length;
             document.getElementById('completedTasks').textContent = completedTasks;
         }
 
@@ -591,18 +588,14 @@ function showLogoutConfirmation() {
             // Update active tasks view if it's currently active
             const activeTasksTab = document.getElementById('active-tasks');
             if (activeTasksTab.style.display !== 'none') {
-                const activeTasks = allTasks.filter(task => 
-                    task.subtasks.some(subtask => subtask.status !== 'completed')
-                );
+                const activeTasks = allTasks.filter(task => task.status === 'active');
                 displayFilteredTasks(document.getElementById('activeTasksList'), activeTasks, 'active');
             }
             
             // Update completed tasks view if it's currently active
             const completedTasksTab = document.getElementById('completed-tasks');
             if (completedTasksTab.style.display !== 'none') {
-                const completedTasks = allTasks.filter(task => 
-                    task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed')
-                );
+                const completedTasks = allTasks.filter(task => task.status === 'completed');
                 displayFilteredTasks(document.getElementById('completedTasksList'), completedTasks, 'completed');
             }
         }
@@ -1023,7 +1016,7 @@ function showLogoutConfirmation() {
                     ...(subtaskId && !subtaskId.startsWith('new-') ? {id: subtaskId} : {}),
                     title,
                     description,
-                    deadline: WizDeskAPI.toUTC(deadline),
+                    deadline: WizDeskAPI.toUTC(deadline, original && original.deadline),
                     priority: subtaskPriority,
                     ...(!original || original.assigned_to !== (assignedTo || null) ? {assigned_to: assignedTo || null} : {})
                 };
@@ -1155,18 +1148,14 @@ function showLogoutConfirmation() {
 
         function displayActiveTasks(tasks) {
             const container = document.getElementById('activeTasksList');
-            const activeTasks = tasks.filter(task => 
-                task.subtasks.some(subtask => subtask.status !== 'completed')
-            );
+            const activeTasks = tasks.filter(task => task.status === 'active');
             
             displayFilteredTasks(container, activeTasks, 'active');
         }
 
         function displayCompletedTasks(tasks) {
             const container = document.getElementById('completedTasksList');
-            const completedTasks = tasks.filter(task => 
-                task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed')
-            );
+            const completedTasks = tasks.filter(task => task.status === 'completed');
             
             displayFilteredTasks(container, completedTasks, 'completed');
         }
@@ -1185,7 +1174,7 @@ function showLogoutConfirmation() {
             }
 
             container.innerHTML = tasks.map(task => {
-                const isCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed');
+                const isCompleted = task.status === 'completed';
                 const statusText = isCompleted ? 'Completed' : 'In Progress';
                 const statusClass = isCompleted ? 'status-completed' : 'status-in-progress';
 
@@ -1231,20 +1220,15 @@ function showLogoutConfirmation() {
 
         // Helper functions for task status
         function getTaskStatusClass(task) {
-            const isCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed');
-            const hasAssigned = task.subtasks.some(st => st.status === 'assigned' || st.status === 'taken');
-            
-            if (isCompleted) return 'status-completed';
-            if (hasAssigned) return 'status-in-progress';
-            return 'status-available';
+            if (task.status === 'completed') return 'status-completed';
+            if (task.status === 'archived') return 'status-available';
+            return task.subtasks.some(st => st.status === 'assigned' || st.status === 'taken') ? 'status-in-progress' : 'status-available';
         }
 
         function getTaskStatusText(task) {
-            const isCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.status === 'completed');
-            const hasAssigned = task.subtasks.some(st => st.status === 'assigned' || st.status === 'taken');
-            
-            if (isCompleted) return 'Completed';
-            if (hasAssigned) return 'In Progress';
+            if (task.status === 'completed') return 'Completed';
+            if (task.status === 'archived') return 'Archived';
+            if (task.subtasks.some(st => st.status === 'assigned' || st.status === 'taken')) return 'In Progress';
             return 'Available';
         }
 
@@ -1958,7 +1942,7 @@ function showLogoutConfirmation() {
                                         <div class="completed-task-title">${escapeHtml(task.task_title || 'Task')} - ${escapeHtml(task.title)}</div>
                                         <div class="completed-task-description" style="color: var(--text-secondary); margin: 5px 0;">${escapeHtml(task.description || 'No description')}</div>
                                         <div class="completed-task-meta">
-                                            Completed on: ${new Date(task.updated_at).toLocaleDateString()}
+                                            Completed on: ${task.completed_at ? new Date(task.completed_at).toLocaleDateString() : 'Date unavailable'}
                                         </div>
                                     </div>
                                 `).join('')}

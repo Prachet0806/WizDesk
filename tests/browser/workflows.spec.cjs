@@ -38,7 +38,7 @@ test('edit modal renders hostile text safely and saves additions and removals to
   await expect(modal).toHaveAttribute('role', 'dialog');
   await expect(modal.locator('.edit-subtask-input')).toHaveValue('<img src=x onerror="window.__xss=true">');
   await expect(modal.locator('.edit-subtask-desc')).toHaveValue('</textarea><img src=x onerror="window.__xss=true">');
-  await expect(modal.locator('.edit-subtask-deadline')).toHaveValue('2030-02-01T10:00');
+  await expect(modal.locator('.edit-subtask-deadline')).toHaveValue('2030-02-01T10:00:00');
   await expect(modal.locator('img')).toHaveCount(0);
   expect(await page.evaluate(() => window.__xss)).toBeUndefined();
   await modal.getByRole('button', {name: 'Remove', exact: true}).click();
@@ -110,4 +110,38 @@ test('editing completed work preserves its former member assignment', async ({pa
   expect(task.subtasks[0].assigned_to).toBe(original.subtasks[0].assigned_to);
   expect(task.subtasks[0].progress).toBe('completed');
   expect(task.status).toBe('completed');
+});
+
+test('leader sees completed parent tasks with no subtasks in management and Completed', async ({page}) => {
+  await login(page, 'leader');
+  const task = await page.evaluate(async () => {
+    const response = await fetch('/api/tasks/', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+      title: 'Completed without children regression', status: 'completed'
+    })});
+    return response.json();
+  });
+  expect(task.status).toBe('completed');
+  expect(task.subtasks).toHaveLength(0);
+  await page.evaluate(() => loadTeamData());
+  await page.evaluate(() => showTab('tasks'));
+  const managementCard = page.locator('#allTasksManagement .task-card', {hasText: 'Completed without children regression'});
+  await expect(managementCard).toContainText('Completed');
+  await expect(managementCard.locator('.progress')).toHaveAttribute('style', /100%/);
+  await page.evaluate(() => showTab('completed-tasks'));
+  await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed without children regression'})).toBeVisible();
+
+  const childTask = await page.evaluate(async () => {
+    const members = await (await fetch('/api/auth/team/BROWSE/approved-members/')).json();
+    const response = await fetch('/api/tasks/', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+      title: 'Completed while tab stays open', subtasks: [{title: 'Finish me', assigned_to: members[0].id}]
+    })});
+    return response.json();
+  });
+  await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed while tab stays open'})).toHaveCount(0);
+  const completion = await page.evaluate(async id => fetch(`/api/tasks/subtask/${id}/progress/`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({progress: 'completed'})
+  }), childTask.subtasks[0].id);
+  expect(completion.ok).toBeTruthy();
+  await page.evaluate(() => loadTeamData());
+  await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed while tab stays open'})).toBeVisible();
 });

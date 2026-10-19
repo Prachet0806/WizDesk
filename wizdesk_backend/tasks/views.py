@@ -106,8 +106,11 @@ class TakeSubtaskView(APIView):
             raise ValidationError('Subtask is already completed.')
         if child.assigned_to_id and child.assigned_to_id != actor.pk:
             raise Conflict('Subtask is assigned to another member.')
+        if child.assigned_to_id == actor.pk:
+            return Response({'message': 'Subtask is already assigned to you.', 'subtask': SubtaskSerializer(child).data})
         child.assigned_to = actor
-        child.progress = Subtask.Progress.IN_PROGRESS
+        if child.progress in (Subtask.Progress.NOT_STARTED, Subtask.Progress.ASSIGNED):
+            child.progress = Subtask.Progress.IN_PROGRESS
         child.sync_state()
         return Response({'message': 'Subtask taken successfully', 'subtask': SubtaskSerializer(child).data})
 

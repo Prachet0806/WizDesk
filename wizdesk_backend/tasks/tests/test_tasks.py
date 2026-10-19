@@ -84,6 +84,19 @@ class SubtaskStateSyncTests(TransactionTestCase):
         self.assertEqual(sub.status, 'taken')
         self.assertEqual(sub.progress, 'in_progress')
 
+    def test_repeating_claim_preserves_testing_progress_and_timestamp(self):
+        r = self.lc.post('/api/tasks/', {'title': 'T', 'subtasks': [{'title': 'S', 'assigned_to': str(self.member.id)}]}, format='json')
+        sub_id = r.data['subtasks'][0]['id']
+        sub = Subtask.objects.get(pk=sub_id)
+        sub.progress = Subtask.Progress.TESTING
+        sub.sync_state()
+        original_updated_at = sub.updated_at
+        r = self.mc.post(f'/api/tasks/subtask/{sub_id}/take/')
+        self.assertEqual(r.status_code, 200)
+        sub.refresh_from_db()
+        self.assertEqual(sub.progress, Subtask.Progress.TESTING)
+        self.assertEqual(sub.updated_at, original_updated_at)
+
     def test_update_progress_validates_value(self):
         r = self.lc.post('/api/tasks/', {'title': 'T', 'subtasks': [{'title': 'S', 'assigned_to': str(self.member.id)}]}, format='json')
         sub_id = r.data['subtasks'][0]['id']

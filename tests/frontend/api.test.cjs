@@ -90,9 +90,55 @@ test('logout revokes the stored refresh and prevents a late refresh from restori
   await new Promise(resolve => setImmediate(resolve));
   await app.api.logout();
   completeRefresh(json({access: 'late', refresh: 'late-refresh'}));
-  await assert.rejects(pending, /expired/);
+  await assert.rejects(pending, /session changed/i);
   assert.equal(submitted, 'old-refresh');
   assert.equal(app.data.get('token'), undefined);
+});
+
+test('a late refresh response cannot clear or overwrite a newer login', async () => {
+  let completeRefresh;
+  const app = client(async url => url.includes('token/refresh')
+    ? new Promise(resolve => {completeRefresh = resolve;}) : json({}, 401));
+  const pending = app.fetch('/api/tasks/');
+  await new Promise(resolve => setImmediate(resolve));
+  app.data.set('token', 'new-access');
+  app.data.set('refresh', 'new-refresh');
+  app.data.set('user', '{"id":"new-user"}');
+  completeRefresh(json({access: 'stale-access', refresh: 'stale-refresh'}));
+  await assert.rejects(pending, /session changed/i);
+  assert.equal(app.data.get('token'), 'new-access');
+  assert.equal(app.data.get('refresh'), 'new-refresh');
+  assert.equal(app.data.get('user'), '{"id":"new-user"}');
+  assert.deepEqual(app.redirects, []);
+});
+
+test('an expired refresh token from an old session cannot redirect a newer login', async () => {
+  let completeRefresh;
+  const app = client(async url => url.includes('token/refresh')
+    ? new Promise(resolve => {completeRefresh = resolve;}) : json({}, 401));
+  const pending = app.fetch('/api/tasks/');
+  await new Promise(resolve => setImmediate(resolve));
+  app.data.set('token', 'new-access');
+  app.data.set('refresh', 'new-refresh');
+  app.data.set('user', '{"id":"new-user"}');
+  completeRefresh(json({}, 401));
+  await assert.rejects(pending, /session changed/i);
+  assert.equal(app.data.get('token'), 'new-access');
+  assert.deepEqual(app.redirects, []);
+});
+
+test('a 401 from an old request cannot expire a replacement session', async () => {
+  let respond;
+  const app = client(async () => new Promise(resolve => {respond = resolve;}));
+  const pending = app.fetch('/api/tasks/');
+  await new Promise(resolve => setImmediate(resolve));
+  app.data.set('token', 'new-access');
+  app.data.set('refresh', 'new-refresh');
+  app.data.set('user', '{"id":"new-user"}');
+  respond(json({}, 401));
+  await assert.rejects(pending, /session changed/i);
+  assert.equal(app.data.get('token'), 'new-access');
+  assert.deepEqual(app.redirects, []);
 });
 
 test('polling waits for completion, skips hidden tabs and backs off on failure', async () => {
@@ -112,10 +158,13 @@ test('polling waits for completion, skips hidden tabs and backs off on failure',
   assert.equal(app.timers.size, 0);
 });
 
-test('datetime-local round trips preserve the instant in a non-UTC timezone', () => {
+test('datetime-local round trips preserve seconds and unchanged milliseconds in a non-UTC timezone', () => {
   const app = client(async () => json({}));
-  const value = '2030-02-01T04:30:00.000Z';
-  assert.equal(app.api.toUTC(app.api.toLocalInput(value)), value);
+  const value = '2030-02-01T04:30:45.123Z';
+  const local = app.api.toLocalInput(value);
+  assert.match(local, /:45$/);
+  assert.equal(app.api.toUTC(local, value), value);
+  assert.equal(app.api.toUTC(local.slice(0, -2) + '46', value), '2030-02-01T04:30:46.000Z');
 });
 
 test('polling grows its interval with request/page count', async () => {

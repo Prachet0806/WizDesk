@@ -24,24 +24,28 @@
     timers.forEach(clearTimeout);
     timers.clear();
   }
-  function expired() {
+  const sessionSnapshot = () => ['token', 'refresh', 'user'].map(key => localStorage.getItem(key));
+  const sameSession = snapshot => snapshot.every((value, index) => value === sessionSnapshot()[index]);
+  function expired(snapshot) {
+    if (snapshot && !sameSession(snapshot)) throw new Error('Session changed while renewing credentials.');
     clearSession();
     location.assign('/index.html');
     throw new Error('Session expired. Please sign in again.');
   }
-  async function rotate(oldAccess) {
+  async function rotate(oldAccess, snapshot) {
     const run = async () => {
+      if (!sameSession(snapshot)) throw new Error('Session changed while renewing credentials.');
       if (localStorage.getItem('token') && localStorage.getItem('token') !== oldAccess) return localStorage.getItem('token');
       const refresh = localStorage.getItem('refresh');
-      if (!refresh) return expired();
+      if (!refresh) return expired(snapshot);
       const response = await apiFetch('/api/token/refresh/', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh}), signal: AbortSignal.timeout(10000)
       });
-      if (response.status === 401 || response.status === 403) return expired();
+      if (response.status === 401 || response.status === 403) return expired(snapshot);
       if (!response.ok) throw new Error('Unable to renew session. Please retry.');
       const data = await response.json();
-      // Logout in another tab must not be undone by a late refresh response.
-      if (localStorage.getItem('refresh') !== refresh) return expired();
+      // A late response from an old identity must not clear or replace a newer session.
+      if (!sameSession(snapshot) || localStorage.getItem('refresh') !== refresh) throw new Error('Session changed while renewing credentials.');
       localStorage.setItem('token', data.access);
       if (data.refresh) localStorage.setItem('refresh', data.refresh);
       return data.access;
@@ -61,19 +65,26 @@
     const url = apiURL(resource);
     if (!url) return nativeFetch(resource, options);
     const publicRequest = publicPaths.some(path => url.pathname.startsWith('/api' + path));
+    let requestSession = sessionSnapshot();
     const token = localStorage.getItem('token');
     const headers = new Headers(options.headers || (resource instanceof Request ? resource.headers : undefined));
     if (token && !publicRequest) headers.set('Authorization', `Bearer ${token}`);
     const config = {...options, headers};
     let response = await apiFetch(resource, config);
+    if (!publicRequest && !sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
     if (response.status === 401 && !publicRequest) {
-      headers.set('Authorization', `Bearer ${await rotate(token)}`);
+      if (!sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
+      headers.set('Authorization', `Bearer ${await rotate(token, requestSession)}`);
+      requestSession = sessionSnapshot();
       response = await apiFetch(resource, config);
-      if (response.status === 401) return expired();
+      if (response.status === 401) return expired(sessionSnapshot());
+      if (!sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
     }
     const readJSON = response.json.bind(response);
     response.json = async () => {
+      if (!publicRequest && !sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
       const data = await readJSON();
+      if (!publicRequest && !sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
       if (!response.ok && data && typeof data === 'object' && !data.error) data.error = errorMessage(data);
       // Existing dashboards consume arrays. Follow validated same-origin pages.
       if (response.ok && Array.isArray(data.results) && Object.hasOwn(data, 'next')) {
@@ -139,11 +150,11 @@
   const toLocalInput = value => {
     if (!value) return '';
     const date = new Date(value);
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
   };
   window.fetch = request;
   window.WizDeskAPI = {request, poll, logout, initialize, errorMessage, toLocalInput,
-    toUTC: value => value ? new Date(value).toISOString() : null};
+    toUTC: (value, originalValue) => !value ? null : (originalValue && value === toLocalInput(originalValue) ? originalValue : new Date(value).toISOString())};
   window.addEventListener('storage', event => {
     if (event.key === 'user' && !event.newValue && location.pathname.includes('dashboard')) {clearSession(); location.assign('/index.html');}
   });

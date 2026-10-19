@@ -505,18 +505,22 @@ class ProcessTransferView(APIView):
         snapshot = TeamTransferRequest.objects.filter(pk=pk).first()
         if not snapshot:
             return Response({'error': 'Transfer request not found'}, status=404)
+        actor = User.objects.select_for_update().get(pk=request.user.pk)
+        if not eligible(actor) or actor.role != User.Role.LEADER:
+            raise PermissionDenied('Your leader membership is no longer eligible.')
         member = User.objects.select_for_update().get(pk=snapshot.member_id)
         transfer = TeamTransferRequest.objects.select_for_update(of=('self',)).select_related('current_team', 'future_team').get(pk=pk)
         expected_team = transfer.current_team if transfer.status == TeamTransferRequest.Status.PENDING_CURRENT else transfer.future_team
         if transfer.status not in (TeamTransferRequest.Status.PENDING_CURRENT, TeamTransferRequest.Status.PENDING_FUTURE):
             raise Conflict('This transfer is no longer pending.')
-        if expected_team.leader_id != request.user.pk:
+        expected_team = Team.objects.select_for_update().get(pk=expected_team.pk)
+        if expected_team.leader_id != actor.pk or actor.team_id != expected_team.pk:
             raise PermissionDenied('You are not the leader for this approval stage.')
-        if member.team_id != transfer.current_team_id or member.status != User.Status.APPROVED:
+        if action == 'approve' and (member.role != User.Role.MEMBER or member.team_id != transfer.current_team_id or not eligible(member)):
             raise Conflict('Membership changed. This transfer cannot proceed.')
         if action == 'reject':
             transfer.status = TeamTransferRequest.Status.REJECTED
-            transfer.rejected_by = request.user
+            transfer.rejected_by = actor
             transfer.rejected_at = timezone.now()
         elif transfer.status == TeamTransferRequest.Status.PENDING_CURRENT:
             transfer.status = TeamTransferRequest.Status.PENDING_FUTURE

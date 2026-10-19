@@ -67,3 +67,24 @@ class TransferFlowTests(TransactionTestCase):
         self.assertEqual(r.status_code, 200)
         req = TeamTransferRequest.objects.get(pk=req_id)
         self.assertEqual(req.status, 'REJECTED')
+
+    def test_transfer_approval_rejects_member_who_became_inactive(self):
+        r = self.m_c.post('/api/auth/transfer/request/', {'future_team_code': self.team_b.code}, format='json')
+        req_id = r.data['id']
+        self.member.is_active = False
+        self.member.save(update_fields=['is_active'])
+        r = self.la_c.post(f'/api/auth/transfer/{req_id}/process/', {'action': 'approve'}, format='json')
+        self.assertEqual(r.status_code, 409)
+        self.member.refresh_from_db()
+        transfer = TeamTransferRequest.objects.get(pk=req_id)
+        self.assertEqual(self.member.team_id, self.team_a.id)
+        self.assertEqual(transfer.status, TeamTransferRequest.Status.PENDING_CURRENT)
+
+    def test_ineligible_member_transfer_can_still_be_rejected(self):
+        r = self.m_c.post('/api/auth/transfer/request/', {'future_team_code': self.team_b.code}, format='json')
+        req_id = r.data['id']
+        self.member.is_active = False
+        self.member.save(update_fields=['is_active'])
+        r = self.la_c.post(f'/api/auth/transfer/{req_id}/process/', {'action': 'reject'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(TeamTransferRequest.objects.get(pk=req_id).status, TeamTransferRequest.Status.REJECTED)
