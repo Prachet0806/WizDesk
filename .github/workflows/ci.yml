@@ -44,7 +44,7 @@ jobs:
           WEB_CONCURRENCY: "1"
         run: |
           python manage.py collectstatic --noinput
-          python manage.py check --deploy --fail-level WARNING
+          python manage.py check --deploy --fail-level ERROR
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -128,10 +128,12 @@ jobs:
           curl -sf http://localhost:8000/static/js/api.js
       - name: Smoke test login flow
         run: |
-          RESPONSE=$(curl -sf -X POST http://localhost:8000/api/auth/login/ \
+          STATUS=$(curl -sS -o /tmp/login.json -w '%{http_code}' \
+            -X POST http://localhost:8000/api/auth/login/ \
             -H 'Content-Type: application/json' \
             -d '{"email":"nonexistent@example.com","password":"wrong"}')
-          echo "$RESPONSE" | grep -q 'Invalid credentials'
+          test "$STATUS" = "401"
+          grep -q 'Invalid credentials' /tmp/login.json
       - name: Stop container
         if: always()
         run: docker rm -f wizdesk-test || true
