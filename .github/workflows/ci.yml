@@ -32,18 +32,19 @@ jobs:
         env:
           SECRET_KEY: ci-only-key-for-static-checks-never-use-in-production-0123456789
           DATABASE_URL: "sqlite:///:memory:"
-          ALLOWED_HOSTS: localhost
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          CSRF_TRUSTED_ORIGINS: http://localhost,http://127.0.0.1
           DEBUG: "False"
-          SECURE_SSL_REDIRECT: "False"
-          SESSION_COOKIE_SECURE: "False"
-          CSRF_COOKIE_SECURE: "False"
-          SECURE_HSTS_SECONDS: "0"
-          SECURE_HSTS_INCLUDE_SUBDOMAINS: "False"
+          SECURE_SSL_REDIRECT: "True"
+          SESSION_COOKIE_SECURE: "True"
+          CSRF_COOKIE_SECURE: "True"
+          SECURE_HSTS_SECONDS: "31536000"
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
           SECURE_HSTS_PRELOAD: "False"
           WEB_CONCURRENCY: "1"
         run: |
           python manage.py collectstatic --noinput
-          python manage.py check --deploy
+          python manage.py check --deploy --fail-level WARNING
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -76,3 +77,61 @@ jobs:
         with:
           name: browser-failures
           path: test-results/
+  docker:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: tests-only
+          POSTGRES_USER: wizdesk_test
+        ports: ["5432:5432"]
+        options: --health-cmd="pg_isready -U wizdesk_test" --health-interval=5s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t wizdesk:test .
+      - name: Run container with production-like config
+        run: |
+          docker run -d --name wizdesk-test --network host \
+            -e SECRET_KEY=ci-docker-test-key-do-not-use-in-production-0123456789 \
+            -e DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
+            -e DEBUG=False \
+            -e ALLOWED_HOSTS=localhost \
+            -e CSRF_TRUSTED_ORIGINS=http://localhost \
+            -e SECURE_SSL_REDIRECT=False \
+            -e WEB_CONCURRENCY=1 \
+            -e CACHE_URL='' \
+            -e EMAIL_VERIFICATION_REQUIRED=False \
+            -e EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend \
+            -e FRONTEND_URL=http://localhost \
+            wizdesk:test
+      - name: Wait for application to start
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health/ > /dev/null; then
+              echo "Application is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Application did not become healthy" >&2
+          docker logs wizdesk-test --tail 50 || true
+          exit 1
+      - name: Run database migrations
+        run: docker exec wizdesk-test python manage.py migrate --noinput
+      - name: Smoke test endpoints
+        run: |
+          curl -sf http://localhost:8000/health/
+          curl -sf http://localhost:8000/ready/
+          curl -sf http://localhost:8000/static/css/auth.css
+          curl -sf http://localhost:8000/static/js/api.js
+      - name: Smoke test login flow
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:8000/api/auth/login/ \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"nonexistent@example.com","password":"wrong"}')
+          echo "$RESPONSE" | grep -q 'Invalid credentials'
+      - name: Stop container
+        if: always()
+        run: docker rm -f wizdesk-test || true

@@ -1,12 +1,13 @@
 from rest_framework import serializers
-from .models import User, Team, TeamTransferRequest
+
+from .models import Team, TeamTransferRequest, User
 
 
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ['id', 'code', 'name', 'leader', 'created_at']
-        read_only_fields = ['id', 'code', 'created_at']
+        fields = ["id", "code", "name", "leader", "created_at"]
+        read_only_fields = ["id", "code", "created_at"]
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -17,43 +18,76 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'name', 'role', 'status', 'team',
-            'team_name', 'email_verified', 'approved_by',
-            'approved_at', 'rejected_by', 'rejected_at',
-            'assigned_tasks', 'completed_tasks', 'date_joined'
+            "id",
+            "email",
+            "name",
+            "role",
+            "status",
+            "team",
+            "team_name",
+            "email_verified",
+            "approved_by",
+            "approved_at",
+            "rejected_by",
+            "rejected_at",
+            "assigned_tasks",
+            "completed_tasks",
+            "date_joined",
         ]
         read_only_fields = [
-            'id', 'status', 'email_verified', 'approved_by',
-            'approved_at', 'rejected_by', 'rejected_at'
+            "id",
+            "status",
+            "email_verified",
+            "approved_by",
+            "approved_at",
+            "rejected_by",
+            "rejected_at",
         ]
 
 
 class TeamTransferRequestSerializer(serializers.ModelSerializer):
-    member_name = serializers.CharField(source='member.name', read_only=True)
-    member_email = serializers.CharField(source='member.email', read_only=True)
-    current_team_name = serializers.CharField(source='current_team.name', read_only=True)
-    future_team_name = serializers.CharField(source='future_team.name', read_only=True)
-    future_team_code = serializers.CharField(source='future_team.code', read_only=True)
+    member_name = serializers.CharField(source="member.name", read_only=True)
+    member_email = serializers.CharField(source="member.email", read_only=True)
+    current_team_name = serializers.CharField(
+        source="current_team.name", read_only=True
+    )
+    future_team_name = serializers.CharField(source="future_team.name", read_only=True)
+    future_team_code = serializers.CharField(source="future_team.code", read_only=True)
 
     class Meta:
         model = TeamTransferRequest
         fields = [
-            'id', 'member', 'member_name', 'member_email',
-            'current_team', 'current_team_name',
-            'future_team', 'future_team_name', 'future_team_code',
-            'status', 'current_lead_approved_at', 'future_lead_approved_at',
-            'rejected_at', 'created_at', 'updated_at'
+            "id",
+            "member",
+            "member_name",
+            "member_email",
+            "current_team",
+            "current_team_name",
+            "future_team",
+            "future_team_name",
+            "future_team_code",
+            "status",
+            "current_lead_approved_at",
+            "future_lead_approved_at",
+            "rejected_at",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = [
-            'id', 'status', 'current_lead_approved_at',
-            'future_lead_approved_at', 'rejected_at', 'created_at', 'updated_at'
+            "id",
+            "status",
+            "current_lead_approved_at",
+            "future_lead_approved_at",
+            "rejected_at",
+            "created_at",
+            "updated_at",
         ]
 
 
 class ProcessTransferSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=['approve', 'reject'])
+    action = serializers.ChoiceField(choices=["approve", "reject"])
 
     def validate_action(self, value):
-        if value not in ['approve', 'reject']:
+        if value not in ["approve", "reject"]:
             raise serializers.ValidationError("Action must be 'approve' or 'reject'.")
         return value

@@ -14,47 +14,72 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import include, path
 from django.views.generic import TemplateView
-from django.conf import settings
-from users.views import HealthCheckView, LivenessView, EligibleTokenRefreshView
+from users.views import EligibleTokenRefreshView, HealthCheckView, LivenessView
+
 
 # Custom 404 handler
 def handler404(request, exception):
     from django.http import JsonResponse
     from django.shortcuts import render
-    if request.path.startswith('/api/'):
-        return JsonResponse({'error': 'Not found'}, status=404)
-    return render(request, '404.html', status=404)
+
+    if request.path.startswith("/api/"):
+        return JsonResponse({"error": "Not found"}, status=404)
+    return render(request, "404.html", status=404)
 
 
 urlpatterns = [
     # Health check endpoints (for uptime monitoring, Render, etc.)
-    path('health/', LivenessView.as_view(), name='health'),
-    path('ready/', HealthCheckView.as_view(), name='ready'),
-
+    path("health/", LivenessView.as_view(), name="health"),
+    path("ready/", HealthCheckView.as_view(), name="ready"),
     # Static Frontend Routes (Priority)
-    path('', TemplateView.as_view(template_name='index.html'), name='index'),
-    path('index.html', TemplateView.as_view(template_name='index.html')),
-
-    path('leader-dashboard/', TemplateView.as_view(template_name='leader-dashboard.html'), name='leader_dashboard'),
-    path('leader-dashboard.html', TemplateView.as_view(template_name='leader-dashboard.html')),
-
-    path('member-dashboard/', TemplateView.as_view(template_name='member-dashboard.html'), name='member_dashboard'),
-    path('member-dashboard.html', TemplateView.as_view(template_name='member-dashboard.html')),
-
-    path('register-leader/', TemplateView.as_view(template_name='register-leader.html'), name='register_leader'),
-    path('register-leader.html', TemplateView.as_view(template_name='register-leader.html')),
-
-    path('member-register/', TemplateView.as_view(template_name='member-register.html'), name='member_register'),
-    path('member-register.html', TemplateView.as_view(template_name='member-register.html')),
-
+    path("", TemplateView.as_view(template_name="index.html"), name="index"),
+    path("index.html", TemplateView.as_view(template_name="index.html")),
+    path(
+        "leader-dashboard/",
+        TemplateView.as_view(template_name="leader-dashboard.html"),
+        name="leader_dashboard",
+    ),
+    path(
+        "leader-dashboard.html",
+        TemplateView.as_view(template_name="leader-dashboard.html"),
+    ),
+    path(
+        "member-dashboard/",
+        TemplateView.as_view(template_name="member-dashboard.html"),
+        name="member_dashboard",
+    ),
+    path(
+        "member-dashboard.html",
+        TemplateView.as_view(template_name="member-dashboard.html"),
+    ),
+    path(
+        "register-leader/",
+        TemplateView.as_view(template_name="register-leader.html"),
+        name="register_leader",
+    ),
+    path(
+        "register-leader.html",
+        TemplateView.as_view(template_name="register-leader.html"),
+    ),
+    path(
+        "member-register/",
+        TemplateView.as_view(template_name="member-register.html"),
+        name="member_register",
+    ),
+    path(
+        "member-register.html",
+        TemplateView.as_view(template_name="member-register.html"),
+    ),
     # API Routes
-    path('admin/', admin.site.urls),
-    path('api/auth/', include('users.urls')),
-    path('api/token/refresh/', EligibleTokenRefreshView.as_view(), name='token_refresh'),
-    path('api/', include('tasks.urls')),
-    path('api/performance/', include('performance.urls')),
-
+    path("admin/", admin.site.urls),
+    path("api/auth/", include("users.urls")),
+    path(
+        "api/token/refresh/", EligibleTokenRefreshView.as_view(), name="token_refresh"
+    ),
+    path("api/", include("tasks.urls")),
+    path("api/performance/", include("performance.urls")),
 ]

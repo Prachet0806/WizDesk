@@ -6,8 +6,8 @@ bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
 backlog = 2048
 
 # Worker processes
-workers = int(os.getenv('WEB_CONCURRENCY', '2'))
-worker_class = 'sync'
+workers = int(os.getenv("WEB_CONCURRENCY", "1"))
+worker_class = "sync"
 worker_connections = 1000
 timeout = 120
 keepalive = 2
@@ -17,13 +17,12 @@ max_requests = 1000
 max_requests_jitter = 50
 
 # Logging
-accesslog = '-'
-errorlog = '-'
-loglevel = os.getenv('LOG_LEVEL', 'info')
+accesslog = "-"
+errorlog = "-"
+loglevel = os.getenv("LOG_LEVEL", "info")
 access_log_format = '%(h)s %(t)s "%(m)s %(U)s %(H)s" %(s)s %(b)s'
 
-# Process naming
-proc_name = 'wizdesk'
+proc_name = "wizdesk"
 
 # Security
 limit_request_fields = 100
@@ -33,9 +32,10 @@ limit_request_line = 4094
 # Performance
 preload_app = True
 
+
 # Post-fork: close old database connections to avoid issues with preload_app + Django
 def post_fork(server, worker):
-    import django
     from django.db import connections
+
     for conn in connections.all():
         conn.close_if_unusable_or_obsolete()

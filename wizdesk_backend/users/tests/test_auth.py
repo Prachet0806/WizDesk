@@ -1,14 +1,17 @@
-from django.test import TransactionTestCase
 from django.contrib.auth import get_user_model
+from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from users.models import Team
 
 User = get_user_model()
 
 
 def auth(client, user):
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}")
+    client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}"
+    )
 
 
 class AuthFlowTests(TransactionTestCase):
@@ -17,12 +20,22 @@ class AuthFlowTests(TransactionTestCase):
     def setUp(self):
         self.team = Team.objects.create(code="TF001", name="Test Team")
         self.leader = User.objects.create_user(
-            username="leader@test.com", email="leader@test.com", password="p",
-            name="Test Leader", role=User.Role.LEADER, status=User.Status.APPROVED, team=self.team
+            username="leader@test.com",
+            email="leader@test.com",
+            password="p",
+            name="Test Leader",
+            role=User.Role.LEADER,
+            status=User.Status.APPROVED,
+            team=self.team,
         )
         self.member = User.objects.create_user(
-            username="member@test.com", email="member@test.com", password="p",
-            name="Test Member", role=User.Role.MEMBER, status=User.Status.APPROVED, team=self.team
+            username="member@test.com",
+            email="member@test.com",
+            password="p",
+            name="Test Member",
+            role=User.Role.MEMBER,
+            status=User.Status.APPROVED,
+            team=self.team,
         )
         self.team.leader = self.leader
         self.team.save()
@@ -34,25 +47,44 @@ class AuthFlowTests(TransactionTestCase):
 
     def test_login_returns_token_and_user(self):
         client = APIClient()
-        r = client.post('/api/auth/login/', {'email': 'leader@test.com', 'password': 'p'}, format='json')
+        r = client.post(
+            "/api/auth/login/",
+            {"email": "leader@test.com", "password": "p"},
+            format="json",
+        )
         self.assertEqual(r.status_code, 200)
-        self.assertIn('token', r.data)
-        self.assertIn('user', r.data)
-        self.assertEqual(r.data['user']['role'], 'LEADER')
+        self.assertIn("token", r.data)
+        self.assertIn("user", r.data)
+        self.assertEqual(r.data["user"]["role"], "LEADER")
 
     def test_member_cannot_create_task_without_team(self):
-        noteam = User.objects.create_user(username="nt@test.com", email="nt@test.com", password="p",
-                                           name="NoTeam", role=User.Role.MEMBER, status=User.Status.APPROVED)
+        noteam = User.objects.create_user(
+            username="nt@test.com",
+            email="nt@test.com",
+            password="p",
+            name="NoTeam",
+            role=User.Role.MEMBER,
+            status=User.Status.APPROVED,
+        )
         nc = APIClient()
         auth(nc, noteam)
-        r = nc.post('/api/tasks/', {'title': 'NoTeam Task'}, format='json')
+        r = nc.post("/api/tasks/", {"title": "NoTeam Task"}, format="json")
         self.assertEqual(r.status_code, 401)
 
     def test_member_cannot_access_other_team_tasks(self):
         other_team = Team.objects.create(code="OT001", name="Other")
-        other_leader = User.objects.create_user(username="ol@test.com", email="ol@test.com", password="p",
-                                                name="Other Leader", role=User.Role.LEADER, status=User.Status.APPROVED, team=other_team)
-        other_team.leader = other_leader; other_team.save()
-        oc = APIClient(); auth(oc, other_leader)
-        r = oc.get(f'/api/tasks/team/{self.team.code}/')
+        other_leader = User.objects.create_user(
+            username="ol@test.com",
+            email="ol@test.com",
+            password="p",
+            name="Other Leader",
+            role=User.Role.LEADER,
+            status=User.Status.APPROVED,
+            team=other_team,
+        )
+        other_team.leader = other_leader
+        other_team.save()
+        oc = APIClient()
+        auth(oc, other_leader)
+        r = oc.get(f"/api/tasks/team/{self.team.code}/")
         self.assertEqual(r.status_code, 403)

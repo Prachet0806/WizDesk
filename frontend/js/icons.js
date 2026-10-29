@@ -62,7 +62,6 @@
         ...attrs
       };
 
-      // Create icons
       lucide.createIcons({
         attrs: defaultAttrs,
         replace
@@ -139,11 +138,9 @@
       await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
     }
 
-    // Initialize icons
     await initIcons();
   }
 
-  // Start auto-initialization
   autoInit();
 
   // Public API

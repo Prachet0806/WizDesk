@@ -1133,8 +1133,8 @@ container.innerHTML = Object.entries(tasksByMainTask).map(([taskId, subtasks]) =
                     <div class="empty-state">
                         <div class="icon"><i data-lucide="alert-triangle"></i></div>
                         <h3>Error Loading Team Tasks</h3>
-                        <p>${error.message}</p>
-                        <p style="font-size: 0.8rem; margin-top: 10px;">Team Code: ${currentUser.team_code}</p>
+                        <p>${escapeHtml(error.message)}</p>
+                        <p style="font-size: 0.8rem; margin-top: 10px;">Team Code: ${escapeAttr(currentUser.team_code)}</p>
                         <button class="btn btn-primary" onclick="loadTeamTasks()" style="margin-top: 15px;">
                             Try Again
                         </button>

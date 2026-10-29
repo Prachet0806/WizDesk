@@ -189,3 +189,20 @@ test('all frontend scripts parse and every template asset points to an existing 
     for (const match of html.matchAll(/{% static '([^']+)' %}/g)) assert.ok(fs.existsSync(path.join(root, match[1])), `${file}: ${match[1]}`);
   }
 });
+
+test('dashboard inline controls resolve to dashboard functions', () => {
+  const root = path.join(__dirname, '../../frontend');
+  for (const role of ['leader', 'member']) {
+    const html = fs.readFileSync(path.join(root, `${role}-dashboard.html`), 'utf8');
+    const script = fs.readFileSync(path.join(root, 'js', `${role}-dashboard.js`), 'utf8');
+    const source = `${html}\n${script}`;
+    const declared = new Set([...source.matchAll(/\b(?:async\s+)?function\s+([\w$]+)\s*\(/g)].map(match => match[1]));
+    const handlers = [...source.matchAll(/\b(?:onclick|onkeyup|onchange|onsubmit)\s*=\s*"([^"]*)"/g)];
+    assert.ok(handlers.length > 10, `${role}: expected dashboard controls`);
+    for (const [, expression] of handlers) {
+      for (const [, name] of expression.matchAll(/(?<![.\w$])([\w$]+)\s*\(/g)) {
+        assert.ok(declared.has(name), `${role}: ${name} is called by ${expression} but is not defined`);
+      }
+    }
+  }
+});

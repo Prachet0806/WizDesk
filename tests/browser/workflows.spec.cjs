@@ -153,3 +153,76 @@ test('leader sees completed parent tasks with no subtasks in management and Comp
   await page.evaluate(() => loadTeamData());
   await expect(page.locator('#completedTasksList .task-card', {hasText: 'Completed while tab stays open'})).toBeVisible();
 });
+
+test('leader dashboard controls remain wired to their actions', async ({page}) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await login(page, 'leader');
+  await expect.poll(() => page.evaluate(() => allTasks.length)).toBeGreaterThanOrEqual(25);
+
+  const originalTheme = await page.locator('html').getAttribute('data-theme');
+  await page.locator('#themeToggle').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', originalTheme);
+  await page.locator('#sidebarToggle').click();
+  await expect(page.locator('body')).toHaveClass(/sidebar-collapsed/);
+  await page.locator('#sidebarToggle').click();
+
+  await page.locator('#notifBell').click();
+  await expect(page.locator('#notifDropdown')).toHaveAttribute('aria-hidden', 'false');
+  await page.locator('.notification-clear').click();
+  await page.locator('.action-card[onclick*="showCreateTaskModal"]').click();
+  await expect(page.locator('#createTaskModal')).toBeVisible();
+  await page.locator('#createTaskModal .close').click();
+
+  await page.locator('[data-tab="tasks"]').click();
+  await expect(page.locator('#allTasksManagement .task-card').first()).toBeVisible();
+  await page.locator('#taskSearchInput').fill('Browser Task 2x');
+  await page.locator('#taskSearchInput').press('Backspace');
+  await expect(page.locator('#allTasksManagement .task-card:visible').first()).toBeVisible();
+  await page.locator('#taskSearchInput').fill('');
+  await page.locator('#taskSearchInput').press('Backspace');
+  await page.locator('#allTasksManagement .task-card:visible').first().click();
+  await expect(page.locator('#taskDetailModal')).toBeVisible();
+  await page.locator('#taskDetailModal .close').click();
+
+  await page.locator('[data-tab="members"]').click();
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.locator('#membersList .member-actions button').first().click();
+  expect(errors).toEqual([]);
+});
+
+test('member dashboard controls remain wired to their actions', async ({page}) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await login(page, 'member');
+
+  const originalTheme = await page.locator('html').getAttribute('data-theme');
+  await page.locator('#themeToggle').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', originalTheme);
+  await page.locator('#sidebarToggle').click();
+  await expect(page.locator('body')).toHaveClass(/sidebar-collapsed/);
+  await page.locator('#sidebarToggle').click();
+  await page.locator('#notifBell').click();
+  await expect(page.locator('#notifDropdown')).toHaveAttribute('aria-hidden', 'false');
+  await page.locator('.notification-clear').click();
+
+  await page.locator('[data-tab="assigned-tasks"]').click();
+  await expect(page.locator('#assignedTasksList .task-card').first()).toBeVisible();
+  const search = page.locator('input[onkeyup*="assignedTasksList"]');
+  await search.fill('Browser Task 2x');
+  await search.press('Backspace');
+  await expect(page.locator('#assignedTasksList .task-card:visible').first()).toBeVisible();
+  await search.fill('');
+  await search.press('Backspace');
+  await page.locator('#assignedTasksList .btn-outline').first().click();
+  await expect(page.locator('#taskDetailsModal')).toBeVisible();
+  await page.locator('#taskDetailsModal .close').click();
+  await page.locator('#assignedTasksList .btn-warning').first().click();
+  await expect(page.locator('#confirmationModal')).toBeVisible();
+  await page.locator('#confirmCancel').click();
+
+  await page.locator('[data-tab="team-transfer"]').click();
+  await page.locator('#requestTransferBtn').click();
+  await expect(page.getByText('Please enter a team code')).toBeVisible();
+  expect(errors).toEqual([]);
+});
