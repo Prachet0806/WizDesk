@@ -134,3 +134,24 @@ class TeamTransferRequest(models.Model):
 
     def __str__(self):
         return f"Transfer: {self.member.name} to {self.future_team.name}"
+
+
+class AuditEvent(models.Model):
+    """Minimal, durable record of successful security-relevant mutations."""
+
+    actor = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="audit_events"
+    )
+    team = models.ForeignKey(
+        Team, on_delete=models.SET_NULL, null=True, related_name="audit_events"
+    )
+    action = models.CharField(max_length=64)
+    target_type = models.CharField(max_length=32)
+    target_id = models.CharField(max_length=36)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["team", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.action} {self.target_type}:{self.target_id}"

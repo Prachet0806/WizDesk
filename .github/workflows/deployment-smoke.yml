@@ -1,0 +1,21 @@
+name: Deployment smoke
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: HTTPS URL of the deployed WizDesk service
+        required: true
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify deployed service
+        env:
+          DEPLOYMENT_URL: ${{ inputs.url }}
+        run: python scripts/smoke_deployment.py --base-url "$DEPLOYMENT_URL"

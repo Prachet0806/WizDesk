@@ -226,3 +226,34 @@ test('member dashboard controls remain wired to their actions', async ({page}) =
   await expect(page.getByText('Please enter a team code')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('password recovery request and link handling work without exposing the token in the address bar', async ({page}) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('link', {name: 'Forgot your password?'}).click();
+  await expect(page).toHaveURL(/reset-password\.html$/);
+  await page.locator('#reset-email').fill('unknown@example.com');
+  await page.getByRole('button', {name: 'Send reset link'}).click();
+  await expect(page.locator('#reset-message')).toContainText('If the account exists');
+  await page.goto('/reset-password.html?uid=example&token=private-token');
+  await expect(page.locator('#confirm-form')).toBeVisible();
+  await expect(page).toHaveURL(/reset-password\.html$/);
+  expect(errors).toEqual([]);
+});
+
+test('login and task dashboards fit a narrow mobile viewport', async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await page.goto('/');
+  await expect(page.locator('#leaderLoginForm')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await login(page, 'leader');
+  await expect(page.locator('#sidebarToggle')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('#sidebarToggle').click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => localStorage.clear());
+  await login(page, 'member');
+  await expect(page.locator('#sidebarToggle')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

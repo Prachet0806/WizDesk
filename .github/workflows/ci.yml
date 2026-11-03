@@ -40,11 +40,12 @@ jobs:
           CSRF_COOKIE_SECURE: "True"
           SECURE_HSTS_SECONDS: "31536000"
           SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
-          SECURE_HSTS_PRELOAD: "False"
+          SECURE_HSTS_PRELOAD: "True"
           WEB_CONCURRENCY: "1"
+          EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
         run: |
           python manage.py collectstatic --noinput
-          python manage.py check --deploy --fail-level ERROR
+          python manage.py check --deploy --fail-level WARNING
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -134,6 +135,8 @@ jobs:
             -d '{"email":"nonexistent@example.com","password":"wrong"}')
           test "$STATUS" = "401"
           grep -q 'Invalid credentials' /tmp/login.json
+      - name: Run deployment contract smoke
+        run: python scripts/smoke_deployment.py --base-url http://localhost:8000 --allow-http-local
       - name: Stop container
         if: always()
         run: docker rm -f wizdesk-test || true

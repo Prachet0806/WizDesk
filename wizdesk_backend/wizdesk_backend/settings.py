@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import dj_database_url
 from dotenv import load_dotenv
@@ -36,17 +37,18 @@ ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-# Render injects RENDER_EXTERNAL_HOSTNAME automatically.
-# Northflank exposes the service URL via NORTHFLANK_SERVICE_URL / NORTHFLANK_DOMAIN.
-render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-northflank_hostname = os.getenv("NORTHFLANK_SERVICE_URL") or os.getenv(
+# Northflank may provide a full URL or a bare service domain.
+northflank_service = os.getenv("NORTHFLANK_SERVICE_URL") or os.getenv(
     "NORTHFLANK_DOMAIN"
 )
-for host in (render_hostname, northflank_hostname):
-    if host:
-        clean_host = host.strip().replace("https://", "").replace("http://", "")
-        if clean_host:
-            ALLOWED_HOSTS.append(clean_host)
+if northflank_service:
+    parsed_service = urlsplit(
+        northflank_service.strip()
+        if "://" in northflank_service
+        else f"https://{northflank_service.strip()}"
+    )
+    if parsed_service.hostname:
+        ALLOWED_HOSTS.append(parsed_service.hostname)
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_TRUSTED_ORIGINS = [
@@ -185,6 +187,7 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": os.getenv("JWT_ROTATE_REFRESH_TOKENS", "True") == "True",
     "BLACKLIST_AFTER_ROTATION": os.getenv("JWT_BLACKLIST_AFTER_ROTATION", "True")
     == "True",
+    "CHECK_REVOKE_TOKEN": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": os.getenv("SIMPLE_JWT_SIGNING_KEY", os.getenv("SECRET_KEY")),
     "VERIFYING_KEY": None,
@@ -221,8 +224,8 @@ DEFAULT_FROM_EMAIL = os.getenv(
 )
 # Frontend base URL used to build verification links sent by email.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "").rstrip("/") or (
-    "https://" + (render_hostname or northflank_hostname)
-    if (render_hostname or northflank_hostname)
+    f"https://{parsed_service.netloc}"
+    if northflank_service and parsed_service.hostname
     else ""
 )
 
@@ -244,6 +247,7 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+PASSWORD_RESET_TIMEOUT = 3600
 
 
 # Internationalization
@@ -280,6 +284,14 @@ if os.getenv("CACHE_URL"):
             "LOCATION": os.environ["CACHE_URL"],
         }
     }
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"json": {"()": "wizdesk_backend.logging.JsonFormatter"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "json"}},
+    "root": {"handlers": ["console"], "level": os.getenv("LOG_LEVEL", "INFO").upper()},
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

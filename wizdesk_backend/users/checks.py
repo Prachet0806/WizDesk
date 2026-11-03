@@ -15,3 +15,15 @@ def shared_throttle_cache(app_configs, **kwargs):
             )
         ]
     return []
+
+
+@register(deploy=True)
+def production_email_delivery(app_configs, **kwargs):
+    if settings.EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend":
+        return [
+            Warning(
+                "Password recovery needs a private email backend; console delivery can expose reset links in logs.",
+                id="wizdesk.W002",
+            )
+        ]
+    return []

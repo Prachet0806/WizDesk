@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Team, TeamTransferRequest, User
+from .models import AuditEvent, Team, TeamTransferRequest, User
 
 
 @admin.register(User)
@@ -44,3 +44,20 @@ class TeamTransferRequestAdmin(admin.ModelAdmin):
     list_display = ("member", "current_team", "future_team", "status", "created_at")
     list_filter = ("status",)
     search_fields = ("member__email", "current_team__name", "future_team__name")
+
+
+@admin.register(AuditEvent)
+class AuditEventAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "action", "actor", "team", "target_type", "target_id")
+    list_filter = ("action", "target_type")
+    search_fields = ("actor__email", "team__code", "target_id")
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

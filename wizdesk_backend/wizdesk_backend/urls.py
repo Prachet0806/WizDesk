@@ -32,12 +32,14 @@ def handler404(request, exception):
 
 
 urlpatterns = [
-    # Health check endpoints (for uptime monitoring, Render, etc.)
+    # Health and readiness probes for the deployment platform.
     path("health/", LivenessView.as_view(), name="health"),
     path("ready/", HealthCheckView.as_view(), name="ready"),
     # Static Frontend Routes (Priority)
     path("", TemplateView.as_view(template_name="index.html"), name="index"),
     path("index.html", TemplateView.as_view(template_name="index.html")),
+    path("reset-password/", TemplateView.as_view(template_name="reset-password.html"), name="reset_password"),
+    path("reset-password.html", TemplateView.as_view(template_name="reset-password.html")),
     path(
         "leader-dashboard/",
         TemplateView.as_view(template_name="leader-dashboard.html"),

@@ -4,6 +4,7 @@ from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from users.api import ObjectAPIView as APIView
+from users.audit import record_audit
 from users.models import User
 from users.permissions import IsApprovedTeamMember, IsTeamLeader
 
@@ -96,6 +97,7 @@ class TaskDetailView(APIView):
         task = get_object_or_404(
             Task.objects.select_for_update(), pk=task_id, team=actor.team
         )
+        record_audit(actor, actor.team, "task.deleted", task)
         task.delete()
         return Response({"message": "Task deleted successfully"})
 
@@ -106,10 +108,15 @@ class UserAssignedSubtasksView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.pk != self.kwargs["user_id"] and not (
-            user.role == User.Role.LEADER and user.team.leader_id == user.pk
-        ):
-            raise PermissionDenied("Unauthorized")
+        if user.pk != self.kwargs["user_id"]:
+            if not (
+                user.role == User.Role.LEADER
+                and user.team.leader_id == user.pk
+                and User.objects.filter(
+                    pk=self.kwargs["user_id"], team=user.team
+                ).exists()
+            ):
+                raise PermissionDenied("Unauthorized")
         return (
             Subtask.objects.filter(
                 assigned_to_id=self.kwargs["user_id"], task__team=user.team
@@ -157,6 +164,7 @@ class TakeSubtaskView(APIView):
         if child.progress in (Subtask.Progress.NOT_STARTED, Subtask.Progress.ASSIGNED):
             child.progress = Subtask.Progress.IN_PROGRESS
         child.sync_state()
+        record_audit(actor, actor.team, "subtask.claimed", child)
         return Response(
             {
                 "message": "Subtask taken successfully",
@@ -184,6 +192,7 @@ class UpdateSubtaskProgressView(APIView):
             raise ValidationError("Assign the subtask before reporting progress.")
         child.progress = progress
         child.sync_state()
+        record_audit(actor, actor.team, "subtask.progress_updated", child)
         return Response(
             {
                 "message": "Progress updated successfully",
@@ -226,6 +235,7 @@ class SubtaskDetailView(APIView):
         if "assigned_to" in data and data["assigned_to"] is None:
             child.progress = Subtask.Progress.NOT_STARTED
         child.sync_state()
+        record_audit(actor, actor.team, "subtask.updated", child)
         return Response(
             {
                 "message": "Subtask updated successfully",
@@ -242,6 +252,7 @@ class SubtaskDetailView(APIView):
             raise PermissionDenied("Only the team leader can delete subtasks.")
         child = locked_subtask(actor, subtask_id)
         parent = child.task
+        record_audit(actor, actor.team, "subtask.deleted", child)
         child.delete()
         refresh_parent(parent)
         return Response({"message": "Subtask deleted successfully"})

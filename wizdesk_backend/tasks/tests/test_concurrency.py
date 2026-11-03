@@ -70,6 +70,42 @@ class ConcurrentMutationTests(TransactionTestCase):
         child.refresh_from_db()
         self.assertIn(child.assigned_to_id, [self.first.pk, self.second.pk])
 
+    def test_two_edits_of_same_task_revision_have_one_winner(self):
+        from tasks.serializers import TaskSerializer
+
+        revision = TaskSerializer(self.task).data["updated_at"]
+        url = f"/api/tasks/{self.task.pk}/"
+        outcomes = self.parallel(
+            [
+                (self.leader, "put", url, {"title": "First", "expected_updated_at": revision}),
+                (self.leader, "put", url, {"title": "Second", "expected_updated_at": revision}),
+            ]
+        )
+        self.assertEqual(sorted(outcomes), [200, 409])
+        self.task.refresh_from_db()
+        self.assertIn(self.task.title, ("First", "Second"))
+
+    def test_duplicate_transfer_submissions_create_one_pending_request(self):
+        future = Team.objects.create(code="RACE03", name="Future")
+        leader = self.user("future-duplicate", User.Role.LEADER)
+        leader.team = future
+        leader.save(update_fields=["team"])
+        future.leader = leader
+        future.save(update_fields=["leader"])
+        outcomes = self.parallel(
+            [
+                (self.first, "post", "/api/auth/transfer/request/", {"future_team_code": future.code}),
+                (self.first, "post", "/api/auth/transfer/request/", {"future_team_code": future.code}),
+            ]
+        )
+        self.assertEqual(sorted(outcomes), [201, 400])
+        self.assertEqual(
+            TeamTransferRequest.objects.filter(
+                member=self.first, status=TeamTransferRequest.Status.PENDING_CURRENT
+            ).count(),
+            1,
+        )
+
     def test_two_rotations_of_one_refresh_have_one_winner(self):
         refresh = str(RefreshToken.for_user(self.first))
         outcomes = self.parallel(
@@ -114,6 +150,49 @@ class ConcurrentMutationTests(TransactionTestCase):
         self.assertEqual(outcomes, [200, 200])
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, "completed")
+
+    def test_leader_edit_and_member_completion_preserve_team_isolation(self):
+        other_team = Team.objects.create(code="RACE04", name="Other")
+        outsider = self.user("other-leader", User.Role.LEADER)
+        outsider.team = other_team
+        outsider.save(update_fields=["team"])
+        other_team.leader = outsider
+        other_team.save(update_fields=["leader"])
+        child = Subtask.objects.create(
+            task=self.task,
+            title="Work",
+            assigned_to=self.first,
+            progress=Subtask.Progress.ASSIGNED,
+            status=Subtask.Status.ASSIGNED,
+        )
+        outcomes = self.parallel(
+            [
+                (
+                    self.leader,
+                    "put",
+                    f"/api/tasks/{self.task.pk}/",
+                    {"title": "Edited under load"},
+                ),
+                (
+                    self.first,
+                    "post",
+                    f"/api/tasks/subtask/{child.pk}/progress/",
+                    {"progress": "completed"},
+                ),
+                (
+                    outsider,
+                    "put",
+                    f"/api/tasks/{self.task.pk}/",
+                    {"title": "Intrusion"},
+                ),
+            ]
+        )
+        self.assertEqual(outcomes, [200, 200, 404])
+        self.task.refresh_from_db()
+        child.refresh_from_db()
+        self.assertEqual(self.task.title, "Edited under load")
+        self.assertEqual(self.task.status, Task.Status.COMPLETED)
+        self.assertEqual(child.progress, Subtask.Progress.COMPLETED)
 
     def test_assignment_racing_transfer_cannot_leave_old_team_work_assigned(self):
         future = Team.objects.create(code="RACE02", name="Future")

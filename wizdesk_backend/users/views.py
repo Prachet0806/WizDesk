@@ -2,9 +2,12 @@ import logging
 import secrets
 import string
 import unicodedata
+import uuid
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
@@ -21,6 +24,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from tasks.services import Conflict, release_unfinished
 
 from .api import ObjectAPIView as APIView
+from .audit import record_audit
 from .authentication import EligibleTokenRefreshSerializer
 from .models import Team, TeamTransferRequest, User
 from .permissions import IsApprovedTeamMember, IsTeamLeader, eligible
@@ -58,13 +62,15 @@ def _send_verification_email(user, token=None, uid=None, kind="leader"):
         if user.role == User.Role.LEADER
         else "member-register.html"
     )
-    frontend = settings.FRONTEND_URL or (
-        "https://" + settings.RENDER_EXTERNAL_HOSTNAME
-        if getattr(settings, "RENDER_EXTERNAL_HOSTNAME", "")
-        else ""
-    )
+    frontend = settings.FRONTEND_URL
     if not frontend:
         logger.error("FRONTEND_URL is required for email delivery")
+        return False
+    if (
+        not settings.DEBUG
+        and settings.EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend"
+    ):
+        logger.error("A private email backend is required for production delivery")
         return False
     link = f"{frontend}/{path}?uid={uid}&token={token}"
     try:
@@ -95,6 +101,22 @@ def create_team(user):
             if not Team.objects.filter(code=code).exists():
                 raise
     raise Conflict("Could not allocate a team code. Retry registration.")
+
+
+def lock_current_leader(user):
+    """Recheck leader authority inside membership mutation transactions."""
+    actor = (
+        User.objects.select_for_update(of=("self",))
+        .select_related("team")
+        .get(pk=user.pk)
+    )
+    if (
+        not eligible(actor)
+        or actor.role != User.Role.LEADER
+        or actor.team.leader_id != actor.pk
+    ):
+        raise PermissionDenied("Your leader membership is no longer eligible.")
+    return actor
 
 
 class RegistrationInput(serializers.Serializer):
@@ -328,6 +350,62 @@ class ResendVerificationView(PublicView):
         )
 
 
+class PasswordResetRequestView(PublicView):
+    throttle_scope = "auth"
+
+    def post(self, request):
+        email = serializers.EmailField().run_validation(request.data.get("email"))
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        if user and settings.FRONTEND_URL and (
+            settings.DEBUG
+            or settings.EMAIL_BACKEND != "django.core.mail.backends.console.EmailBackend"
+        ):
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            link = f"{settings.FRONTEND_URL}/reset-password.html?uid={uid}&token={token}"
+            try:
+                send_mail(
+                    "Reset your WizDesk password",
+                    f"Hi {user.name},\n\nReset your password: {link}\n\nThis link expires in one hour.",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+            except Exception:
+                logger.error("Password reset delivery failed", exc_info=False)
+        return Response(
+            {"message": "If the account exists, a reset email will arrive."},
+            status=202,
+        )
+
+
+class PasswordResetConfirmView(PublicView):
+    throttle_scope = "auth"
+
+    @transaction.atomic
+    def post(self, request):
+        uid = serializers.CharField().run_validation(request.data.get("uid"))
+        token = serializers.CharField().run_validation(request.data.get("token"))
+        password = serializers.CharField(trim_whitespace=False).run_validation(
+            request.data.get("password")
+        )
+        try:
+            user_id = uuid.UUID(force_str(urlsafe_base64_decode(uid)))
+        except (ValueError, TypeError, UnicodeDecodeError, OverflowError):
+            raise ValidationError("Invalid or expired reset link.")
+        user = User.objects.select_for_update().filter(pk=user_id, is_active=True).first()
+        if not user or not default_token_generator.check_token(user, token):
+            raise ValidationError("Invalid or expired reset link.")
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            raise ValidationError({"password": exc.messages})
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        record_audit(user, user.team, "account.password_reset", user)
+        return Response({"message": "Password updated. Sign in again."})
+
+
 class CheckMemberStatusView(PublicView):
     throttle_scope = "auth"
 
@@ -521,15 +599,17 @@ class ApproveMemberView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        actor = lock_current_leader(request.user)
         user_id = request.data.get("userId")
         try:
             member = User.objects.select_for_update().get(
-                id=user_id, team=request.user.team, role=User.Role.MEMBER
+                id=user_id, team=actor.team, role=User.Role.MEMBER
             )
             member.status = User.Status.APPROVED
-            member.approved_by = request.user
+            member.approved_by = actor
             member.approved_at = timezone.now()
             member.save()
+            record_audit(actor, actor.team, "membership.approved", member)
             return Response({"message": "Member approved successfully"})
         except (User.DoesNotExist, DjangoValidationError):
             return Response(
@@ -543,17 +623,19 @@ class RejectMemberView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        actor = lock_current_leader(request.user)
         user_id = request.data.get("userId")
         try:
             member = User.objects.select_for_update().get(
-                id=user_id, team=request.user.team, role=User.Role.MEMBER
+                id=user_id, team=actor.team, role=User.Role.MEMBER
             )
-            cancel_transfers(member, request.user)
-            release_unfinished(member, request.user.team)
+            cancel_transfers(member, actor)
+            release_unfinished(member, actor.team)
             member.status = User.Status.REJECTED
-            member.rejected_by = request.user
+            member.rejected_by = actor
             member.rejected_at = timezone.now()
             member.save()
+            record_audit(actor, actor.team, "membership.rejected", member)
             return Response(
                 {
                     "message": "Member rejected successfully",
@@ -580,17 +662,19 @@ class DeleteRejectedMemberView(APIView):
 
     @transaction.atomic
     def delete(self, request, user_id):
+        actor = lock_current_leader(request.user)
         try:
             member = User.objects.select_for_update().get(
                 id=user_id,
-                team=request.user.team,
+                team=actor.team,
                 role=User.Role.MEMBER,
                 status=User.Status.REJECTED,
             )
-            cancel_transfers(member, request.user)
-            release_unfinished(member, request.user.team)
+            cancel_transfers(member, actor)
+            release_unfinished(member, actor.team)
             member.team = None
             member.save(update_fields=["team"])
+            record_audit(actor, actor.team, "membership.deleted_rejected", member)
             return Response({"message": "Rejected membership removed"})
         except (User.DoesNotExist, DjangoValidationError):
             return Response(
@@ -604,17 +688,19 @@ class RemoveTeamMemberView(APIView):
 
     @transaction.atomic
     def delete(self, request, team_code, user_id):
-        if request.user.team.code != team_code:
+        actor = lock_current_leader(request.user)
+        if actor.team.code != team_code:
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
         try:
             member = User.objects.select_for_update().get(
-                id=user_id, team=request.user.team, role=User.Role.MEMBER
+                id=user_id, team=actor.team, role=User.Role.MEMBER
             )
-            cancel_transfers(member, request.user)
-            release_unfinished(member, request.user.team)
+            cancel_transfers(member, actor)
+            release_unfinished(member, actor.team)
             member.team = None
             member.status = User.Status.REJECTED
             member.save(update_fields=["team", "status"])
+            record_audit(actor, actor.team, "membership.removed", member)
             return Response({"message": "Member removed dynamically"})
         except (User.DoesNotExist, DjangoValidationError):
             return Response(
@@ -696,6 +782,7 @@ class RequestTransferView(APIView):
             future_team=future_team,
             status=TeamTransferRequest.Status.PENDING_CURRENT,
         )
+        record_audit(member, member.team, "transfer.requested", transfer_request)
         return Response(
             TeamTransferRequestSerializer(transfer_request).data,
             status=status.HTTP_201_CREATED,
@@ -785,4 +872,5 @@ class ProcessTransferView(APIView):
             transfer.status = TeamTransferRequest.Status.APPROVED
             transfer.future_lead_approved_at = timezone.now()
         transfer.save()
+        record_audit(actor, expected_team, f"transfer.{transfer.status.lower()}", transfer)
         return Response({"message": "Transfer updated.", "status": transfer.status})

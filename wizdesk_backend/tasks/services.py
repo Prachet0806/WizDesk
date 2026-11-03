@@ -2,6 +2,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from users.audit import record_audit
 from users.models import User
 from users.permissions import eligible
 
@@ -146,4 +147,5 @@ def save_task(actor, values, task_id=None):
             {"status": "Complete all subtasks before completing the task."}
         )
     refresh_parent(task)
+    record_audit(actor, actor.team, "task.updated" if task_id else "task.created", task)
     return task

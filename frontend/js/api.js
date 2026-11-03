@@ -6,7 +6,7 @@
   let requestFailures = 0;
   let requestCount = 0;
   const timers = new Set();
-  const publicPaths = ['/auth/login/', '/auth/send-', '/auth/verify-', '/auth/resend-', '/auth/config/', '/auth/check-member-status/', '/auth/logout/', '/token/refresh/'];
+  const publicPaths = ['/auth/login/', '/auth/send-', '/auth/verify-', '/auth/resend-', '/auth/password-reset/', '/auth/config/', '/auth/check-member-status/', '/auth/logout/', '/token/refresh/'];
   const apiURL = value => {
     const url = new URL(value instanceof Request ? value.url : value, location.origin);
     return url.origin === location.origin && url.pathname.startsWith('/api/') ? url : null;

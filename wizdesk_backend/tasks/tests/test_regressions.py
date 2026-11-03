@@ -3,14 +3,14 @@ from unittest.mock import patch
 
 from django.core.cache import cache
 from django.core.management import call_command
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, OperationalError, connection, transaction
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from users.models import Team, TeamTransferRequest, User
+from users.models import AuditEvent, Team, TeamTransferRequest, User
 from users.views import verification_token
 
 from tasks.models import Subtask, Task
@@ -145,6 +145,42 @@ class RegressionTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Task.objects.get().title, "Original")
         self.assertEqual(Subtask.objects.get().title, "Keep")
+
+    def test_database_write_failure_rolls_back_task_and_subtask_edit(self):
+        original = self.task([{"title": "Keep"}])
+        with patch.object(Subtask, "save", side_effect=OperationalError("database unavailable")):
+            with self.assertRaises(OperationalError):
+                self.client.put(
+                    f"/api/tasks/{original['id']}/",
+                    {
+                        "title": "Must roll back",
+                        "subtasks": [
+                            {"id": original["subtasks"][0]["id"], "title": "Must roll back"}
+                        ],
+                    },
+                    format="json",
+                )
+        self.assertEqual(Task.objects.get(pk=original["id"]).title, "Original")
+        self.assertEqual(Subtask.objects.get(pk=original["subtasks"][0]["id"]).title, "Keep")
+        self.assertFalse(AuditEvent.objects.filter(action="task.updated").exists())
+
+    def test_task_audit_event_commits_with_mutation(self):
+        original = self.task([{"title": "S"}])
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action="task.created", target_id=original["id"], team=self.team
+            ).exists()
+        )
+        response = self.client.put(
+            f"/api/tasks/{original['id']}/", {"title": "Edited"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            AuditEvent.objects.filter(
+                action="task.updated", target_id=original["id"]
+            ).count(),
+            1,
+        )
 
     def test_stale_revision_and_foreign_child_ids_rejected(self):
         first = self.task([{"title": "First"}])
