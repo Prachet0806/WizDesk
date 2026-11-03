@@ -13,12 +13,13 @@
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
     <link rel="stylesheet" href="{% static 'css/toasts.css' %}">
     <link rel="stylesheet" href="{% static 'leader.css' %}">
+    <link rel="stylesheet" href="{% static 'css/polish.css' %}">
     <script src="{% static 'js/theme.js' %}"></script>
     <script src="{% static 'js/api.js' %}"></script>
     <script src="{% static 'js/ui.js' %}" defer></script>
     <script src="{% static 'js/icons.js' %}" defer></script>
 </head>
-<body>
+<body class="dashboard-page leader-page">
     <a class="skip-link" href="#page-content">Skip to content</a>
     <div class="app-shell">
         <!-- Sidebar (V2 shell; data-tab values + badge IDs preserved for legacy JS) -->
@@ -96,7 +97,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     </button>
                     <div>
-                        <div class="page-title">Team Management</div>
+                        <div class="page-title">Team management</div>
                         <div class="page-subtitle">Monitor and manage your team's progress</div>
                     </div>
                 </div>
@@ -132,57 +133,57 @@
                 <div id="overview" class="tab-content active">
                     <!-- Quick Actions -->
                     <div class="quick-actions">
-                        <div class="action-card" onclick="showCreateTaskModal()">
+                        <button type="button" class="action-card" onclick="showCreateTaskModal()">
                             <div class="action-icon"><i data-lucide="plus"></i></div>
-                            <div class="action-title">Create Task</div>
+                            <div class="action-title">Create task</div>
                             <div class="action-desc">Create new task with subtasks</div>
-                        </div>
-                        <div class="action-card" onclick="showTab('approval-requests')">
+                        </button>
+                        <button type="button" class="action-card" onclick="showTab('approval-requests')">
                             <div class="action-icon"><i data-lucide="user-check"></i></div>
-                            <div class="action-title">Approve Members</div>
+                            <div class="action-title">Approve members</div>
                             <div class="action-desc">Review pending member requests</div>
-                        </div>
-                        <div class="action-card" onclick="showTab('members')">
+                        </button>
+                        <button type="button" class="action-card" onclick="showTab('members')">
                             <div class="action-icon"><i data-lucide="users"></i></div>
-                            <div class="action-title">Manage Team</div>
+                            <div class="action-title">Manage team</div>
                             <div class="action-desc">View and manage team members</div>
-                        </div>
-                        <div class="action-card" onclick="showTab('performance')">
+                        </button>
+                        <button type="button" class="action-card" onclick="showTab('performance')">
                             <div class="action-icon"><i data-lucide="bar-chart-3"></i></div>
-                            <div class="action-title">View Reports</div>
+                            <div class="action-title">View reports</div>
                             <div class="action-desc">Check team performance</div>
-                        </div>
+                        </button>
                     </div>
 
                     <!-- Stats -->
                     <div class="stats-grid">
                         <div class="stat-card">
                             <div class="stat-number" id="totalTasks">0</div>
-                            <div class="stat-label">Total Tasks</div>
+                            <div class="stat-label">Total tasks</div>
                         </div>
                         <div class="stat-card completed">
                             <div class="stat-number" id="completedTasks">0</div>
-                            <div class="stat-label">Completed Tasks</div>
+                            <div class="stat-label">Completed tasks</div>
                         </div>
                         <div class="stat-card pending">
                             <div class="stat-number" id="activeTasks">0</div>
-                            <div class="stat-label">In Progress</div>
+                            <div class="stat-label">In progress</div>
                         </div>
                         <div class="stat-card members">
                             <div class="stat-number" id="teamMembers">0</div>
-                            <div class="stat-label">Team Members</div>
+                            <div class="stat-label">Team members</div>
                         </div>
                         <div class="stat-card requests">
                             <div class="stat-number" id="pendingRequests">0</div>
-                            <div class="stat-label">Pending Requests</div>
+                            <div class="stat-label">Pending requests</div>
                         </div>
                     </div>
 
                     <!-- Recent Tasks -->
                     <div class="section">
                         <div class="section-header">
-                            <h2 class="section-title">Recent Tasks</h2>
-                            <button class="btn btn-primary" onclick="showCreateTaskModal()">Create New Task</button>
+                            <h2 class="section-title">Recent tasks</h2>
+                            <button class="btn btn-primary" onclick="showCreateTaskModal()">Create task</button>
                         </div>
                         <div id="recentTasksList" class="task-list">
                             <div class="empty-state">

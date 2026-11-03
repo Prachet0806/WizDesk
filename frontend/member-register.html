@@ -381,35 +381,39 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{% static 'css/polish.css' %}">
 </head>
-<body class="auth-page">
+<body class="auth-page registration-page member-registration">
     <div class="verification-hold-banner" role="status">Register your account to continue.</div>
     <div class="container">
         <div class="auth-brand">
             <div class="auth-logo">W</div>
             <h1>WizDesk</h1>
-            <p>Join Your Team</p>
+            <p>Join your team workspace</p>
         </div>
 
         <div class="form-container">
             <div class="form-card">
-                <h2>Register as Team Member</h2>
+                <h2>Join your team</h2>
 
                 <div class="info-box">
-                    <p>Ask your Team Leader for the Team Code to join their team</p>
+                    <p>Ask your team leader for the team code</p>
                 </div>
 
                 <!-- Registration Form -->
                 <form id="memberRegisterForm">
                     <div class="form-group">
+                        <label for="memberName">Full name</label>
                         <input type="text" id="memberName" placeholder="Your Full Name" required>
                         <div id="nameError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Use letters, spaces, apostrophes, hyphens or periods</div>
                     </div>
                     <div class="form-group">
+                        <label for="memberEmail">Email address</label>
                         <input type="email" id="memberEmail" placeholder="Email Address" required>
                         <div id="emailError" class="password-match error" style="display: none; font-size: 12px; margin-top: 5px;">Please enter a valid email address</div>
                     </div>
                     <div class="form-group">
+                        <label for="memberPassword">Password</label>
                         <input type="password" id="memberPassword" placeholder="Password" required minlength="8">
                         <div id="passwordStrength" class="password-strength"></div>
                         <div class="password-requirements">
@@ -424,10 +428,12 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label for="confirmPassword">Confirm password</label>
                         <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
                         <div id="passwordMatch" class="password-match"></div>
                     </div>
                     <div class="form-group">
+                        <label for="memberTeamCode">Team code</label>
                         <input type="text" id="memberTeamCode" placeholder="Team Code (from your leader)" required>
                     </div>
 
@@ -446,11 +452,7 @@
                     </div>
                     <p>Your request is available for your team leader to review.</p>
                     <p>Sign in after your team leader approves your membership.</p>
-                    <button onclick="window.location.href='index.html'" class="btn-primary" style="background: linear-gradient(135deg, #28a745, #20c997); margin-top: 15px;">Go to Login</button>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <button onclick="window.location.href='index.html'" class="btn-secondary">Back to Login</button>
+                    <button onclick="window.location.href='index.html'" class="btn-primary">Go to login</button>
                 </div>
 
                 <p class="back-link">

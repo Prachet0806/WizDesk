@@ -5,12 +5,15 @@
     const form = document.getElementById(leader ? 'leaderRegisterForm' : 'memberRegisterForm');
     if (!form) return;
     const banner = document.querySelector('.verification-hold-banner');
+    let verificationRequired = true;
     try {
       const config = await fetch('/api/auth/config/').then(r => r.json());
-      if (banner) banner.textContent = config.verificationRequired ? 'Verify your email to complete registration.' : 'Registration completes immediately; no email step is required.';
+      verificationRequired = config.verificationRequired !== false;
+      if (banner) banner.textContent = verificationRequired ? 'Verify your email to complete registration.' : 'Registration completes immediately; no email step is required.';
     } catch (_) {if (banner) banner.textContent = 'Register your account to continue.';}
     const params = new URLSearchParams(location.search);
-    if (params.has('token') || params.has('uid')) {
+    const hasVerificationLink = params.has('token') || params.has('uid');
+    if (hasVerificationLink) {
       const token = params.get('token');
       const uid = params.get('uid');
       history.replaceState(null, '', location.pathname);
@@ -25,6 +28,7 @@
         notice.textContent = leader ? `Email verified. Your team code is ${data.teamCode}. You can now sign in.` : 'Email verified. Your team leader must approve your membership before you sign in.';
       } catch (error) {notice.textContent = error.message;}
     }
+    if (!verificationRequired && !hasVerificationLink) return;
     const resend = document.createElement('button');
     resend.type = 'button'; resend.className = 'btn btn-outline'; resend.textContent = 'Resend verification email';
     const status = document.createElement('p'); status.setAttribute('role', 'status');

@@ -11,12 +11,9 @@
     --input-bg: var(--color-bg-surface);
     --accent-color: var(--color-primary);
     --shadow: var(--shadow-sm);
-    --priority-high: var(--priority-high);
-    --priority-medium: var(--priority-medium);
-    --priority-low: var(--priority-low);
-    --priority-high-bg: var(--priority-high-bg);
-    --priority-medium-bg: var(--priority-medium-bg);
-    --priority-low-bg: var(--priority-low-bg);
+    --priority-high: var(--priority-high-text);
+    --priority-medium: var(--priority-medium-text);
+    --priority-low: var(--priority-low-text);
 }
 
 .dark-theme {
@@ -31,12 +28,9 @@
     --input-bg: var(--color-bg-surface-muted);
     --accent-color: var(--color-primary);
     --shadow: var(--shadow-md);
-    --priority-high: var(--priority-high);
-    --priority-medium: var(--priority-medium);
-    --priority-low: var(--priority-low);
-    --priority-high-bg: var(--priority-high-bg);
-    --priority-medium-bg: var(--priority-medium-bg);
-    --priority-low-bg: var(--priority-low-bg);
+    --priority-high: var(--priority-high-text);
+    --priority-medium: var(--priority-medium-text);
+    --priority-low: var(--priority-low-text);
 }
 
 /* Dark mode specific overrides */

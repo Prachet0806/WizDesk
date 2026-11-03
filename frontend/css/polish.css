@@ -1,0 +1,1149 @@
+/* WizDesk UI polish. Direction informed by unslop by Damir Sokolovsky
+   (@heydamir), CC BY 4.0. */
+
+/* Shared rhythm and restrained interaction feedback */
+body {
+  font-family: var(--font-family-base);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.btn,
+.filter-btn,
+.topbar-action,
+.sidebar-item,
+.action-card {
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.btn:focus-visible,
+.filter-btn:focus-visible,
+.action-card:focus-visible,
+.topbar-action:focus-visible,
+.sidebar-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Dashboard foundation. The older role styles still use these aliases. */
+.dashboard-page,
+.dashboard-page.dark-theme {
+  --bg-primary: var(--color-bg-app);
+  --bg-secondary: var(--color-bg-surface);
+  --header-bg: var(--color-bg-surface);
+  --card-bg: var(--color-bg-surface);
+  --input-bg: var(--color-bg-surface);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --border-color: var(--color-border-default);
+  --shadow: var(--shadow-xs);
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+}
+
+.dashboard-page * {
+  transition-property: none;
+}
+
+.dashboard-page .btn,
+.dashboard-page .filter-btn,
+.dashboard-page .topbar-action,
+.dashboard-page .sidebar-item,
+.dashboard-page .action-card {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+
+.dashboard-page .app-shell,
+.dashboard-page .main-content {
+  min-width: 0;
+  background: var(--color-bg-app);
+}
+
+.dashboard-page .page-content {
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+  padding: 24px 28px 48px;
+}
+
+.dashboard-page .sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+}
+
+.dashboard-page .sidebar-header {
+  border-color: var(--color-border-default);
+}
+
+.dashboard-page .sidebar-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dashboard-page .sidebar-title {
+  color: var(--color-text-primary);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.dashboard-page .sidebar-nav {
+  gap: 20px;
+}
+
+.dashboard-page .sidebar-section {
+  gap: 2px;
+}
+
+.dashboard-page .sidebar-section-title {
+  padding: 0 12px 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.dashboard-page .sidebar-item {
+  min-height: 36px;
+  padding: 8px 12px;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.dashboard-page .sidebar-item:hover,
+.dashboard-page .sidebar-user {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-primary);
+}
+
+.dashboard-page .sidebar-item.active {
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+  border-left: 0;
+  font-weight: 500;
+}
+
+.dashboard-page .sidebar-item-icon,
+.dashboard-page .sidebar-item-icon svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.dashboard-page .sidebar-footer {
+  border-color: var(--color-border-default);
+}
+
+.dashboard-page .sidebar-user .user-name {
+  color: var(--color-text-primary);
+}
+
+.dashboard-page .topbar {
+  min-width: 0;
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+  padding-inline: 28px;
+}
+
+.dashboard-page .topbar-left,
+.dashboard-page .topbar-right {
+  min-width: 0;
+}
+
+.dashboard-page .page-title {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.dashboard-page .page-subtitle {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.dashboard-page .topbar .user-role {
+  color: var(--color-text-secondary);
+}
+
+.dashboard-page .topbar .btn-danger {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-secondary);
+  box-shadow: none;
+}
+
+.dashboard-page .topbar .btn-danger:hover {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-primary);
+}
+
+/* Overview composition */
+.dashboard-page .quick-actions,
+.dashboard-page .stats-grid {
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.leader-page #overview .quick-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-page .action-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: none;
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dashboard-page .action-card:hover {
+  background: var(--color-bg-surface-muted);
+  border-color: var(--color-border-strong);
+  box-shadow: none;
+}
+
+.dashboard-page .action-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.dashboard-page .action-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
+}
+
+.dashboard-page .action-card:first-child {
+  border-color: var(--color-primary);
+}
+
+.dashboard-page .action-card:first-child .action-icon {
+  color: var(--color-primary);
+}
+
+.dashboard-page .action-title {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dashboard-page .action-desc {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.leader-page #overview .stats-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.member-page #overview .stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-page .stat-card,
+.dashboard-page .stat-card.completed,
+.dashboard-page .stat-card.pending,
+.dashboard-page .stat-card.members,
+.dashboard-page .stat-card.requests,
+.dashboard-page .stat-card.inprogress,
+.dashboard-page .stat-card.overdue {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+
+.dashboard-page .stat-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: none;
+}
+
+.dashboard-page .stat-number {
+  margin-bottom: 8px;
+  color: var(--color-text-primary);
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-page .stat-label,
+.member-page .stat-card > div:last-child {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.dashboard-page .section {
+  margin-bottom: 24px;
+  padding: 24px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 14px;
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+
+.dashboard-page .section-header,
+.member-page .section h2 {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.dashboard-page .section-title,
+.member-page .section h2 {
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.member-page .section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-page .section h2 svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.dashboard-page .task-list {
+  gap: 8px;
+}
+
+.dashboard-page .task-card {
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+
+.dashboard-page .task-card:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-surface-muted);
+  box-shadow: none;
+}
+
+.dashboard-page .task-card.overdue { border-left: 3px solid var(--color-danger); }
+.dashboard-page .task-card.assigned { border-left: 3px solid var(--color-primary); }
+.dashboard-page .task-card.completed { border-left: 3px solid var(--color-success); }
+.dashboard-page .task-card:has(.status-in-progress),
+.dashboard-page .task-card:has(.status-inprogress) { border-left: 3px solid var(--color-primary); }
+.dashboard-page .task-card:has(.status-completed) { border-left: 3px solid var(--color-success); }
+.dashboard-page .task-card:has(.status-rejected) { border-left: 3px solid var(--color-danger); }
+
+.dashboard-page .task-header {
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.dashboard-page .task-title {
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.dashboard-page .task-description {
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dashboard-page .progress-section {
+  margin: 12px 0;
+}
+
+.dashboard-page .progress-info {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-page .progress-bar {
+  height: 4px;
+  background: var(--color-bg-surface-muted);
+}
+
+.dashboard-page .progress {
+  background: var(--color-primary);
+  transition: none;
+}
+
+.dashboard-page .task-meta {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-color: var(--color-border-default);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.dashboard-page .task-actions {
+  gap: 8px;
+}
+
+.dashboard-page .empty-state {
+  padding: 28px 16px;
+  color: var(--color-text-secondary);
+}
+
+.dashboard-page .empty-state .icon {
+  margin-bottom: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 24px;
+  opacity: 1;
+}
+
+.dashboard-page .empty-state .icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.5;
+}
+
+.dashboard-page .empty-state h3 {
+  margin-bottom: 4px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.dashboard-page .empty-state p {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dashboard-page .btn {
+  min-height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dashboard-page .btn-sm {
+  min-height: 30px;
+}
+
+.dashboard-page .btn-primary,
+.member-page .task-actions .btn-warning,
+.member-page .task-actions .btn-success,
+.member-page .task-actions .btn-take-task {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.dashboard-page .btn-primary:hover,
+.member-page .task-actions .btn-warning:hover,
+.member-page .task-actions .btn-success:hover,
+.member-page .task-actions .btn-take-task:hover {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+  color: var(--color-primary-text);
+}
+
+.dashboard-page .filter-btn {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.dashboard-page .filter-btn.active,
+.dashboard-page .performance-filter-btn.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+}
+
+.dashboard-page .status-badge,
+.dashboard-page .priority-badge,
+.dashboard-page .detail-subtask-status {
+  padding: 2px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+
+.dashboard-page .status-pending,
+.dashboard-page .status-assigned,
+.dashboard-page .priority-medium {
+  border-color: var(--status-pending-border);
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+}
+
+.dashboard-page .status-in-progress,
+.dashboard-page .status-inprogress,
+.dashboard-page .status-taken,
+.dashboard-page .status-testing {
+  border-color: var(--status-inprogress-border);
+  background: var(--status-inprogress-bg);
+  color: var(--status-inprogress-text);
+}
+
+.dashboard-page .status-completed {
+  border-color: var(--status-completed-border);
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+}
+
+.dashboard-page .status-rejected,
+.dashboard-page .priority-high {
+  border-color: var(--status-rejected-border);
+  background: var(--status-rejected-bg);
+  color: var(--status-rejected-text);
+}
+
+.dashboard-page .priority-low {
+  border-color: var(--status-available-border);
+  background: var(--status-available-bg);
+  color: var(--status-available-text);
+}
+
+.dashboard-page .modal {
+  background: rgba(8, 12, 14, 0.55);
+  backdrop-filter: none;
+}
+
+.dashboard-page .modal-content {
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+}
+
+.dashboard-page .modal-header {
+  padding: 16px 20px;
+  border-color: var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+
+.dashboard-page .modal-header h2 {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.dashboard-page .modal-body {
+  padding: 20px;
+}
+
+.dashboard-page .close:hover {
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-primary);
+}
+
+.dashboard-page .form-group {
+  margin-bottom: 16px;
+}
+
+.dashboard-page .form-label,
+.dashboard-page .task-detail-label {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dashboard-page .form-input,
+.dashboard-page .form-textarea,
+.dashboard-page .form-select,
+.dashboard-page .search-input {
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.dashboard-page .form-input:focus,
+.dashboard-page .form-textarea:focus,
+.dashboard-page .form-select:focus,
+.dashboard-page .search-input:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary-muted);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.dashboard-page .assignment-section {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface-muted);
+}
+
+.dashboard-page .subtask-item,
+.dashboard-page .edit-subtask-item,
+.dashboard-page .detail-subtask-item {
+  padding: 12px;
+  border-color: var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface-muted);
+  box-shadow: none;
+}
+
+.dashboard-page .detail-subtask-item:hover,
+.dashboard-page .assignment-toggle:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-surface-muted);
+  box-shadow: none;
+  transform: none;
+}
+
+.dashboard-page .member-card,
+.dashboard-page .request-card,
+.dashboard-page .top-performer-card,
+.dashboard-page .top-performer-card.gold,
+.dashboard-page .top-performer-card.silver,
+.dashboard-page .top-performer-card.bronze {
+  padding: 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+
+.dashboard-page .member-card:hover,
+.dashboard-page .request-card:hover,
+.dashboard-page .top-performer-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: none;
+  transform: none;
+}
+
+.dashboard-page .request-name,
+.dashboard-page .member-name {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.dashboard-page .members-list,
+.dashboard-page .top-performers-grid {
+  gap: 16px;
+  margin-block: 16px 24px;
+}
+
+.dashboard-page .members-performance-table {
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+
+.dashboard-page .performance-table th,
+.dashboard-page .performance-table td {
+  padding: 12px 16px;
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.dashboard-page .performance-table th {
+  background: var(--color-bg-surface-muted);
+  font-weight: 500;
+}
+
+.dashboard-page .performance-table tr:hover {
+  background: var(--color-bg-surface-muted);
+}
+
+.member-page .member-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-page .member-quick-actions .btn {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+/* Forms and supporting pages */
+.login-page .hero,
+.login-page .login-card {
+  box-shadow: none;
+}
+
+.login-page .hero h1 {
+  max-width: 20ch;
+  font-size: clamp(32px, 3vw, 38px);
+  font-weight: 500;
+}
+
+.login-page .hero li strong,
+.login-page .brand-name {
+  font-weight: 500;
+}
+
+.login-page .brand-mark {
+  font-weight: 600;
+}
+
+.login-page .hero .tick {
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.login-page .password-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.login-page .password-toggle svg[hidden] {
+  display: none;
+}
+
+.login-page .login-foot {
+  color: var(--color-text-tertiary);
+}
+
+.registration-page {
+  justify-content: flex-start;
+  padding: 32px 16px 48px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+}
+
+.registration-page .container {
+  width: 100%;
+  max-width: 520px;
+  padding: 0;
+}
+
+.registration-page .auth-brand {
+  margin: 12px auto 24px;
+}
+
+.registration-page .auth-logo {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.registration-page .auth-brand h1 {
+  margin-bottom: 4px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.registration-page .auth-brand p {
+  font-size: 14px;
+}
+
+.registration-page .form-container {
+  max-width: none;
+}
+
+.registration-page .form-card {
+  padding: 28px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.registration-page .form-card h2 {
+  margin-bottom: 24px;
+  color: var(--color-text-primary);
+  font-size: 24px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.registration-page .form-group {
+  margin-bottom: 16px;
+}
+
+.registration-page .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.registration-page .form-group input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: none;
+  font-size: 14px;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.registration-page .form-group input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-muted);
+}
+
+.registration-page .form-group input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.registration-page .password-requirements {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.registration-page .requirement {
+  margin: 2px 0;
+}
+
+.registration-page .requirement-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  color: var(--color-text-tertiary);
+}
+
+.registration-page .requirement.met .requirement-icon {
+  color: var(--color-success);
+}
+
+.registration-page .requirement.met {
+  color: var(--color-success-text);
+}
+
+.registration-page .requirement.unmet .requirement-icon {
+  color: var(--color-danger);
+}
+
+.registration-page .requirement.unmet {
+  color: var(--color-danger-text);
+}
+
+.registration-page .password-match.error,
+.registration-page .password-strength.weak {
+  background: var(--color-danger-muted);
+  color: var(--color-danger-text);
+}
+
+.registration-page .password-match.success,
+.registration-page .password-strength.strong,
+.registration-page .email-success,
+.registration-page .verification-success {
+  background: var(--color-success-muted);
+  color: var(--color-success-text);
+  border-color: var(--status-completed-border);
+}
+
+.registration-page .password-strength.medium,
+.registration-page .email-warning,
+.registration-page .verification-pending {
+  background: var(--color-warning-muted);
+  color: var(--color-warning-text);
+  border-color: var(--status-pending-border);
+}
+
+.registration-page .btn-primary {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.registration-page .btn-primary:hover:not(:disabled) {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+.registration-page .btn-primary.loading::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: wizdesk-spin 700ms linear infinite;
+}
+
+.registration-page .info-box,
+.registration-page .verification-section {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.registration-page .info-box p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.registration-page .success-message {
+  padding: 16px;
+  border: 1px solid var(--status-completed-border);
+  border-radius: 10px;
+  background: var(--status-completed-bg);
+  text-align: left;
+}
+
+.registration-page .success-message h3,
+.registration-page .success-message p {
+  color: var(--status-completed-text);
+}
+
+.registration-page .team-code {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.registration-page .message,
+.registration-page .message.success,
+.registration-page .message.error,
+.registration-page .message.warning {
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.registration-page .message.success { border-left: 3px solid var(--color-success); }
+.registration-page .message.error { border-left: 3px solid var(--color-danger); }
+.registration-page .message.warning { border-left: 3px solid var(--color-warning); }
+
+.registration-page .back-link {
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.not-found-page .error-code {
+  font-weight: 500;
+}
+
+.not-found-page .error-title {
+  font-weight: 500;
+}
+
+.not-found-page .error-illustration svg {
+  animation: none;
+}
+
+@keyframes wizdesk-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1180px) {
+  .leader-page #overview .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .member-page #overview .stats-grid,
+  .leader-page #overview .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .dashboard-page .sidebar {
+    position: fixed;
+    width: min(280px, 88vw);
+    transition: transform 200ms ease;
+  }
+
+  .dashboard-page .topbar {
+    height: auto;
+    min-height: 64px;
+    padding: 8px 16px;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  .dashboard-page .topbar-left,
+  .dashboard-page .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dashboard-page .topbar-left {
+    gap: 8px;
+  }
+
+  .dashboard-page .topbar-left > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dashboard-page .page-subtitle,
+  .dashboard-page .topbar .user-details {
+    display: none;
+  }
+
+  .dashboard-page .topbar-right {
+    gap: 8px;
+  }
+
+  .dashboard-page .topbar-actions {
+    margin-left: auto;
+    gap: 4px;
+  }
+
+  .dashboard-page .topbar-action,
+  .dashboard-page #sidebarToggle,
+  .dashboard-page #themeToggle {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+  }
+
+  .dashboard-page .team-code {
+    font-size: 11px;
+  }
+
+  .dashboard-page .page-content {
+    padding: 16px 16px 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-page .page-title {
+    font-size: 18px;
+  }
+
+  .leader-page #overview .stats-grid,
+  .member-page #overview .stats-grid,
+  .leader-page #overview .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .leader-page #overview .stat-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-page .stat-card,
+  .dashboard-page .stat-card.completed,
+  .dashboard-page .stat-card.pending,
+  .dashboard-page .stat-card.members,
+  .dashboard-page .stat-card.requests,
+  .dashboard-page .stat-card.inprogress {
+    padding: 16px;
+  }
+
+  .dashboard-page .action-card {
+    min-height: 108px;
+    padding: 12px;
+  }
+
+  .dashboard-page .section {
+    padding: 16px;
+  }
+
+  .dashboard-page .section-header {
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-page .task-card {
+    padding: 14px;
+  }
+
+  .dashboard-page .task-meta,
+  .dashboard-page .task-actions {
+    flex-wrap: wrap;
+  }
+
+  .member-page .member-quick-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  .registration-page {
+    padding: 24px 16px 40px;
+  }
+
+  .registration-page .form-card {
+    padding: 20px;
+  }
+
+  .registration-page .form-card h2 {
+    font-size: 22px;
+  }
+
+  .login-page .hero {
+    padding: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page *,
+  .dashboard-page *::before,
+  .dashboard-page *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+
+  .registration-page .btn-primary.loading::after {
+    animation: none;
+  }
+}
