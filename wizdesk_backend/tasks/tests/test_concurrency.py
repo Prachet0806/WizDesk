@@ -48,10 +48,19 @@ class ConcurrentMutationTests(TransactionTestCase):
         def execute(index):
             user, method, url, payload = operations[index]
             client = APIClient()
-            client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens[index]}")
+            if url == "/api/token/refresh/":
+                csrf = client.get("/api/auth/csrf/").data["csrfToken"]
+                client.cookies["wizdesk_refresh"] = payload["refresh"]
+                request_headers = {"HTTP_X_CSRFTOKEN": csrf}
+            else:
+                client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens[index]}")
+                request_headers = {}
             try:
                 barrier.wait(timeout=10)
-                response = getattr(client, method)(url, payload, format="json")
+                request_data = {} if url == "/api/token/refresh/" else payload
+                response = getattr(client, method)(
+                    url, request_data, format="json", **request_headers
+                )
                 return response.status_code
             finally:
                 connections.close_all()

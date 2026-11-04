@@ -150,9 +150,12 @@ jobs:
           curl -sf http://localhost:8000/static/js/api.js
       - name: Smoke test login flow
         run: |
+          CSRF=$(curl -fsS -c /tmp/wizdesk-cookies.txt http://localhost:8000/api/auth/csrf/ | python -c 'import json,sys; print(json.load(sys.stdin)["csrfToken"])')
           STATUS=$(curl -sS -o /tmp/login.json -w '%{http_code}' \
             -X POST http://localhost:8000/api/auth/login/ \
             -H 'Content-Type: application/json' \
+            -H "X-CSRFToken: $CSRF" \
+            -b /tmp/wizdesk-cookies.txt \
             -d '{"email":"nonexistent@example.com","password":"wrong"}')
           test "$STATUS" = "401"
           grep -q 'Invalid credentials' /tmp/login.json

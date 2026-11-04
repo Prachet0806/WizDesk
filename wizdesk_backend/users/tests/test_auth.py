@@ -45,16 +45,22 @@ class AuthFlowTests(TransactionTestCase):
         auth(self.lc, self.leader)
         auth(self.mc, self.member)
 
-    def test_login_returns_token_and_user(self):
+    def test_login_returns_user_and_sets_httponly_tokens(self):
         client = APIClient()
+        csrf = client.get("/api/auth/csrf/").data["csrfToken"]
         r = client.post(
             "/api/auth/login/",
             {"email": "leader@test.com", "password": "p"},
             format="json",
+            HTTP_X_CSRFTOKEN=csrf,
         )
         self.assertEqual(r.status_code, 200)
-        self.assertIn("token", r.data)
         self.assertIn("user", r.data)
+        self.assertNotIn("token", r.data)
+        self.assertIn("wizdesk_access", r.cookies)
+        self.assertIn("wizdesk_refresh", r.cookies)
+        self.assertTrue(r.cookies["wizdesk_access"]["httponly"])
+        self.assertTrue(r.cookies["wizdesk_refresh"]["httponly"])
         self.assertEqual(r.data["user"]["role"], "LEADER")
 
     def test_member_cannot_create_task_without_team(self):

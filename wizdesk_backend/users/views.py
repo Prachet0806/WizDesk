@@ -20,6 +20,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import permissions, serializers, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 from tasks.services import Conflict, release_unfinished
@@ -469,11 +470,28 @@ class CsrfCookieView(PublicView):
 class EligibleTokenRefreshView(PublicView):
     throttle_scope = "auth"
 
+    @staticmethod
+    def reject_refresh():
+        response = Response(
+            {"detail": "Refresh token is invalid or expired."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+        response.delete_cookie("wizdesk_access", path="/")
+        response.delete_cookie("wizdesk_refresh", path="/api/token/refresh/")
+        return response
+
     def post(self, request):
         from .authentication import EligibleJWTAuthentication
+
         EligibleJWTAuthentication().enforce_csrf(request)
-        serializer = EligibleTokenRefreshSerializer(data={"refresh": request.COOKIES.get("wizdesk_refresh", "")})
-        serializer.is_valid(raise_exception=True)
+        refresh = request.COOKIES.get("wizdesk_refresh")
+        if not refresh:
+            return self.reject_refresh()
+        serializer = EligibleTokenRefreshSerializer(data={"refresh": refresh})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except InvalidToken:
+            return self.reject_refresh()
         data = serializer.validated_data
         response = Response({"refreshed": True})
         response.set_cookie("wizdesk_access", data["access"], httponly=True, secure=not settings.DEBUG, samesite="Lax", path="/")

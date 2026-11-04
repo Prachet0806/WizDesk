@@ -11,7 +11,7 @@ function client(fetch) {
   const redirects = [];
   const localStorage = {getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value), removeItem: key => data.delete(key)};
   const location = {origin: 'http://localhost', pathname: '/leader-dashboard.html', assign: url => redirects.push(url)};
-  const document = {visibilityState: 'visible'};
+  const document = {visibilityState: 'visible', cookie: 'csrftoken=csrf-test'};
   const window = {fetch, addEventListener() {}};
   const context = {window, localStorage, location, document, navigator: {}, Request, Response, Headers, URL, AbortSignal,
     setTimeout: (fn, delay) => {const timer = ++id; timers.set(timer, {fn: async () => {timers.delete(timer); await fn();}, delay}); return timer;}, clearTimeout: timer => timers.delete(timer)};
@@ -20,32 +20,32 @@ function client(fetch) {
 }
 const json = (value, status = 200) => new Response(JSON.stringify(value), {status, headers: {'Content-Type': 'application/json'}});
 
-test('simultaneous 401s share refresh and store both rotated tokens', async () => {
-  let refreshes = 0;
+test('simultaneous 401s share cookie refresh without exposing tokens to JavaScript', async () => {
+  let refreshes = 0; let refreshed = false;
   const app = client(async (url, options) => {
-    if (url.includes('token/refresh')) {refreshes++; await new Promise(resolve => setImmediate(resolve)); return json({access: 'new-access', refresh: 'new-refresh'});}
-    return options.headers.get('Authorization') === 'Bearer old-access' ? json({}, 401) : json({ok: true});
+    if (url.includes('token/refresh')) {refreshes++; await new Promise(resolve => setImmediate(resolve)); refreshed = true; return json({refreshed: true});}
+    return refreshed ? json({ok: true}) : json({}, 401);
   });
   const responses = await Promise.all([app.fetch('/api/tasks/'), app.fetch('/api/auth/me/')]);
   assert.ok(responses.every(response => response.ok));
   assert.equal(refreshes, 1);
-  assert.equal(app.data.get('refresh'), 'new-refresh');
-  assert.equal(app.data.get('token'), 'new-access');
+  assert.equal(app.data.get('refresh'), undefined);
+  assert.equal(app.data.get('token'), undefined);
 });
 
-test('two successive expiry cycles use the newly rotated refresh', async () => {
-  const submitted = []; let version = 0;
+test('successive expiry cycles refresh using the HttpOnly cookie', async () => {
+  let refreshes = 0; let expired = true;
   const app = client(async (url, options) => {
     if (url.includes('token/refresh')) {
-      submitted.push(JSON.parse(options.body).refresh); version++;
-      return json({access: `access-${version}`, refresh: `refresh-${version}`});
+      refreshes++; expired = false;
+      return json({refreshed: true});
     }
-    return options.headers.get('Authorization') === `Bearer access-${version}` && version ? json({}) : json({}, 401);
+    return expired ? json({}, 401) : json({});
   });
   await app.fetch('/api/tasks/');
-  app.data.set('token', 'expired-again');
+  expired = true;
   await app.fetch('/api/tasks/');
-  assert.deepEqual(submitted, ['old-refresh', 'refresh-1']);
+  assert.equal(refreshes, 2);
 });
 
 test('failed refresh rejects every waiting request and clears only session keys', async () => {
@@ -61,7 +61,7 @@ test('failed refresh rejects every waiting request and clears only session keys'
 test('temporary refresh failure retains the session for retry', async () => {
   const app = client(async url => json({}, url.includes('refresh') ? 503 : 401));
   await assert.rejects(app.fetch('/api/tasks/'), /retry/);
-  assert.equal(app.data.get('refresh'), 'old-refresh');
+  assert.equal(app.data.get('user'), '{}');
 });
 
 test('public authentication requests and external URLs do not receive session headers', async () => {
@@ -79,19 +79,19 @@ test('pagination follows every same-origin page and rejects external next links'
   await assert.rejects((await bad.fetch('/api/tasks/')).json(), /pagination/);
 });
 
-test('logout revokes the stored refresh and prevents a late refresh from restoring the session', async () => {
-  let completeRefresh; let submitted;
+test('logout clears the local session and prevents a late cookie refresh from restoring it', async () => {
+  let completeRefresh; let logoutCalled = false;
   const app = client(async (url, options) => {
     if (url.includes('token/refresh')) return new Promise(resolve => {completeRefresh = resolve;});
-    if (url.includes('logout')) {submitted = JSON.parse(options.body).refresh; return new Response(null, {status: 204});}
+    if (url.includes('logout')) {logoutCalled = true; return new Response(null, {status: 204});}
     return json({}, 401);
   });
   const pending = app.fetch('/api/tasks/');
   await new Promise(resolve => setImmediate(resolve));
   await app.api.logout();
-  completeRefresh(json({access: 'late', refresh: 'late-refresh'}));
+  completeRefresh(json({refreshed: true}));
   await assert.rejects(pending, /session changed/i);
-  assert.equal(submitted, 'old-refresh');
+  assert.equal(logoutCalled, true);
   assert.equal(app.data.get('token'), undefined);
 });
 
@@ -101,13 +101,9 @@ test('a late refresh response cannot clear or overwrite a newer login', async ()
     ? new Promise(resolve => {completeRefresh = resolve;}) : json({}, 401));
   const pending = app.fetch('/api/tasks/');
   await new Promise(resolve => setImmediate(resolve));
-  app.data.set('token', 'new-access');
-  app.data.set('refresh', 'new-refresh');
   app.data.set('user', '{"id":"new-user"}');
-  completeRefresh(json({access: 'stale-access', refresh: 'stale-refresh'}));
+  completeRefresh(json({refreshed: true}));
   await assert.rejects(pending, /session changed/i);
-  assert.equal(app.data.get('token'), 'new-access');
-  assert.equal(app.data.get('refresh'), 'new-refresh');
   assert.equal(app.data.get('user'), '{"id":"new-user"}');
   assert.deepEqual(app.redirects, []);
 });
@@ -118,12 +114,9 @@ test('an expired refresh token from an old session cannot redirect a newer login
     ? new Promise(resolve => {completeRefresh = resolve;}) : json({}, 401));
   const pending = app.fetch('/api/tasks/');
   await new Promise(resolve => setImmediate(resolve));
-  app.data.set('token', 'new-access');
-  app.data.set('refresh', 'new-refresh');
   app.data.set('user', '{"id":"new-user"}');
   completeRefresh(json({}, 401));
   await assert.rejects(pending, /session changed/i);
-  assert.equal(app.data.get('token'), 'new-access');
   assert.deepEqual(app.redirects, []);
 });
 
@@ -132,12 +125,9 @@ test('a 401 from an old request cannot expire a replacement session', async () =
   const app = client(async () => new Promise(resolve => {respond = resolve;}));
   const pending = app.fetch('/api/tasks/');
   await new Promise(resolve => setImmediate(resolve));
-  app.data.set('token', 'new-access');
-  app.data.set('refresh', 'new-refresh');
   app.data.set('user', '{"id":"new-user"}');
   respond(json({}, 401));
   await assert.rejects(pending, /session changed/i);
-  assert.equal(app.data.get('token'), 'new-access');
   assert.deepEqual(app.redirects, []);
 });
 

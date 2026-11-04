@@ -1,20 +1,25 @@
 """Read-only endpoint checks for a running WizDesk deployment."""
 
 import argparse
+import http.cookiejar
 import json
 import re
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPCookieProcessor, Request, build_opener
+
+COOKIE_JAR = http.cookiejar.CookieJar()
+OPENER = build_opener(HTTPCookieProcessor(COOKIE_JAR))
 
 
-def fetch(base_url, path, *, payload=None):
+def fetch(base_url, path, *, payload=None, headers=None):
     data = json.dumps(payload).encode() if payload is not None else None
-    headers = {"Content-Type": "application/json"} if data is not None else {}
-    request = Request(urljoin(base_url + "/", path.lstrip("/")), data=data, headers=headers)
+    request_headers = {"Content-Type": "application/json"} if data is not None else {}
+    request_headers.update(headers or {})
+    request = Request(urljoin(base_url + "/", path.lstrip("/")), data=data, headers=request_headers)
     try:
-        with urlopen(request, timeout=10) as response:
+        with OPENER.open(request, timeout=10) as response:
             return response.status, response.headers, response.read()
     except HTTPError as error:
         return error.code, error.headers, error.read()
@@ -57,10 +62,14 @@ def main():
         status, _, body = fetch(base_url, path)
         require(status == 200 and body, f"{path} is unavailable")
 
+    csrf_status, _, csrf_body = fetch(base_url, "/api/auth/csrf/")
+    require(csrf_status == 200, f"CSRF bootstrap returned {csrf_status}")
+    csrf_token = json.loads(csrf_body)["csrfToken"]
     status, _, body = fetch(
         base_url,
         "/api/auth/login/",
         payload={"email": "nonexistent-smoke@example.invalid", "password": "wrong"},
+        headers={"X-CSRFToken": csrf_token},
     )
     require(status == 401, f"Invalid login returned {status}, expected 401")
     require("Invalid credentials" in body.decode(), "Invalid login response changed")

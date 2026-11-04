@@ -36,7 +36,7 @@
     throw new Error('Session expired. Please sign in again.');
   }
   function csrfToken() {
-    return document.cookie.split('; ').find(value => value.startsWith('csrftoken='))?.slice(10) || '';
+    return (document.cookie || '').split('; ').find(value => value.startsWith('csrftoken='))?.slice(10) || '';
   }
   async function rotate(snapshot) {
     const run = async () => {

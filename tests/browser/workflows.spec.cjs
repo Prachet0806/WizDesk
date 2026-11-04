@@ -69,8 +69,14 @@ test('edit modal renders hostile text safely and saves additions and removals to
 test('member groups equal task titles separately and logout removes credentials', async ({page, request}) => {
   await login(page, 'member');
   const memberId = await page.evaluate(() => JSON.parse(localStorage.getItem('user')).id);
-  const leader = await (await request.post('/api/auth/login/', {data: {email: 'leader@example.com', password: 'OceanWaves!2031'}})).json();
-  const headers = {Authorization: `Bearer ${leader.token}`};
+  await request.get('/api/auth/csrf/');
+  const csrf = (await request.storageState()).cookies.find(cookie => cookie.name === 'csrftoken').value;
+  const leaderLogin = await request.post('/api/auth/login/', {
+    headers: {'X-CSRFToken': csrf},
+    data: {email: 'leader@example.com', password: 'OceanWaves!2031'}
+  });
+  expect(leaderLogin.ok()).toBe(true);
+  const headers = {'X-CSRFToken': csrf};
   for (let index = 0; index < 2; index++) {
     const response = await request.post('/api/tasks/', {headers, data: {title: 'Independent Equal Title', subtasks: [{title: `Group ${index}`, assigned_to: memberId}]}});
     expect(response.status()).toBe(201);
@@ -83,7 +89,7 @@ test('member groups equal task titles separately and logout removes credentials'
   await expect(page.locator('#confirmationModal')).toBeVisible();
   await page.locator('#confirmAction').click();
   await expect(page).toHaveURL(/index.html/);
-  expect(await page.evaluate(() => ['token', 'refresh', 'user'].map(key => localStorage.getItem(key)))).toEqual([null, null, null]);
+  expect(await page.evaluate(() => localStorage.getItem('user'))).toBeNull();
 });
 
 test('dialog traps keyboard focus and Escape returns focus to the trigger', async ({page}) => {
@@ -249,7 +255,8 @@ test('password recovery request and link handling work without exposing the toke
   await page.locator('#reset-email').fill('unknown@example.com');
   await page.getByRole('button', {name: 'Send reset link'}).click();
   await expect(page.locator('#reset-message')).toContainText('If the account exists');
-  await page.goto('/reset-password.html?uid=example&token=private-token');
+  await page.goto('/reset-password.html#uid=example&token=private-token');
+  await page.reload();
   await expect(page.locator('#confirm-form')).toBeVisible();
   await expect(page).toHaveURL(/reset-password\.html$/);
   expect(errors).toEqual([]);

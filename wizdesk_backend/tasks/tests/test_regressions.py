@@ -45,6 +45,13 @@ class RegressionTests(TestCase):
         )
         return client
 
+    def refresh_client(self, token):
+        client = APIClient()
+        csrf = client.get("/api/auth/csrf/").data["csrfToken"]
+        client.cookies["wizdesk_refresh"] = str(token)
+        client.defaults["HTTP_X_CSRFTOKEN"] = csrf
+        return client
+
     def task(self, children=None):
         response = self.client.post(
             "/api/tasks/",
@@ -53,6 +60,17 @@ class RegressionTests(TestCase):
         )
         self.assertEqual(response.status_code, 201, response.data)
         return response.data
+
+    def test_refresh_without_cookie_returns_unauthorized(self):
+        client = APIClient()
+        csrf = client.get("/api/auth/csrf/").data["csrfToken"]
+        response = client.post(
+            "/api/token/refresh/", {}, format="json", HTTP_X_CSRFTOKEN=csrf
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.data["detail"], "Refresh token is invalid or expired."
+        )
 
     def test_invalid_second_deadline_leaves_no_partial_task(self):
         response = self.client.post(
@@ -273,41 +291,38 @@ class RegressionTests(TestCase):
         for state in (User.Status.PENDING, User.Status.REJECTED):
             self.member.status = state
             self.member.save()
-            response = APIClient().post(
-                "/api/token/refresh/", {"refresh": refresh}, format="json"
+            response = self.refresh_client(refresh).post(
+                "/api/token/refresh/", {}, format="json"
             )
-            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.status_code, 401, response.content)
 
     def test_rotation_and_logout_blacklist(self):
-        anonymous = APIClient()
         original = str(RefreshToken.for_user(self.member))
-        first = anonymous.post(
-            "/api/token/refresh/", {"refresh": original}, format="json"
-        )
+        anonymous = self.refresh_client(original)
+        first = anonymous.post("/api/token/refresh/", {}, format="json")
         self.assertEqual(first.status_code, 200)
-        self.assertNotEqual(first.data["refresh"], original)
+        self.assertEqual(first.data, {"refreshed": True})
+        rotated = anonymous.cookies["wizdesk_refresh"].value
+        self.assertNotEqual(rotated, original)
+        replay = self.refresh_client(original)
         self.assertEqual(
-            anonymous.post(
-                "/api/token/refresh/", {"refresh": original}, format="json"
-            ).status_code,
+            replay.post("/api/token/refresh/", {}, format="json").status_code,
             401,
         )
-        second = anonymous.post(
-            "/api/token/refresh/", {"refresh": first.data["refresh"]}, format="json"
-        )
+        second = anonymous.post("/api/token/refresh/", {}, format="json")
         self.assertEqual(second.status_code, 200)
+        rotated_after_second = anonymous.cookies["wizdesk_refresh"].value
+        self.assertNotEqual(rotated_after_second, rotated)
+        anonymous.defaults["HTTP_X_CSRFTOKEN"] = anonymous.get(
+            "/api/auth/csrf/"
+        ).data["csrfToken"]
         self.assertEqual(
-            anonymous.post(
-                "/api/auth/logout/", {"refresh": second.data["refresh"]}, format="json"
-            ).status_code,
+            anonymous.post("/api/auth/logout/", {}, format="json").status_code,
             204,
         )
+        revoked = self.refresh_client(rotated_after_second)
         self.assertEqual(
-            anonymous.post(
-                "/api/token/refresh/",
-                {"refresh": second.data["refresh"]},
-                format="json",
-            ).status_code,
+            revoked.post("/api/token/refresh/", {}, format="json").status_code,
             401,
         )
 
@@ -316,11 +331,13 @@ class RegressionTests(TestCase):
         self.member.email_verified = False
         self.member.save()
         anonymous = APIClient()
+        csrf = anonymous.get("/api/auth/csrf/").data["csrfToken"]
         self.assertEqual(
             anonymous.post(
                 "/api/auth/login/",
                 {"email": self.member.email, "password": "BlueRiver!2031"},
                 format="json",
+                HTTP_X_CSRFTOKEN=csrf,
             ).status_code,
             403,
         )
@@ -328,11 +345,9 @@ class RegressionTests(TestCase):
             self.client_for(self.member).get("/api/auth/me/").status_code, 401
         )
         self.assertEqual(
-            anonymous.post(
-                "/api/token/refresh/",
-                {"refresh": str(RefreshToken.for_user(self.member))},
-                format="json",
-            ).status_code,
+            self.refresh_client(str(RefreshToken.for_user(self.member)))
+            .post("/api/token/refresh/", {}, format="json")
+            .status_code,
             401,
         )
         self.assertEqual(

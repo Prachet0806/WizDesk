@@ -40,8 +40,12 @@ class PasswordResetTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         url = re.search(r"https?://\S+", mail.outbox[0].body).group(0)
         self.assertEqual(urlparse(url).path, "/reset-password.html")
-        query = parse_qs(urlparse(url).query)
+        query = parse_qs(urlparse(url).fragment)
         return {"uid": query["uid"][0], "token": query["token"][0]}
+
+    def csrf_headers(self, client):
+        response = client.get("/api/auth/csrf/")
+        return {"HTTP_X_CSRFTOKEN": response.data["csrfToken"]}
 
     def test_request_is_generic_and_reset_revokes_old_access_and_refresh(self):
         old_refresh = RefreshToken.for_user(self.user)
@@ -84,17 +88,23 @@ class PasswordResetTests(TestCase):
         authenticated = APIClient()
         authenticated.credentials(HTTP_AUTHORIZATION=f"Bearer {old_access}")
         self.assertEqual(authenticated.get("/api/auth/me/").status_code, 401)
+        refresh_client = APIClient()
+        csrf = self.csrf_headers(refresh_client)
+        refresh_client.cookies["wizdesk_refresh"] = str(old_refresh)
         self.assertEqual(
-            APIClient().post(
-                "/api/token/refresh/", {"refresh": str(old_refresh)}, format="json"
+            refresh_client.post(
+                "/api/token/refresh/", {}, format="json", **csrf
             ).status_code,
             401,
         )
+        login_client = APIClient()
+        csrf = self.csrf_headers(login_client)
         self.assertEqual(
-            APIClient().post(
+            login_client.post(
                 "/api/auth/login/",
                 {"email": self.user.email, "password": "NewPassword!2031"},
                 format="json",
+                **csrf,
             ).status_code,
             200,
         )
