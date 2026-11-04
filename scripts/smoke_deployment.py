@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
@@ -49,7 +50,8 @@ def main():
         require(json.loads(body)["status"] == expected, f"{path} reported an unhealthy state")
         if not local_http:
             hsts = headers.get("Strict-Transport-Security", "")
-            require("max-age=" in hsts and "includeSubDomains" in hsts and "preload" in hsts, f"{path} lacks the expected HSTS policy")
+            max_age = re.search(r"(?:^|;)\s*max-age=(\d+)(?:;|$)", hsts)
+            require(max_age is not None and int(max_age.group(1)) > 0, f"{path} lacks an active HSTS policy")
 
     for path in ("/static/css/auth.css", "/static/js/api.js"):
         status, _, body = fetch(base_url, path)

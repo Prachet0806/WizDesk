@@ -15,6 +15,7 @@ from .views import (
     ProcessTransferView,
     RejectMemberView,
     RemoveTeamMemberView,
+    RotateTeamCodeView,
     RequestTransferView,
     ResendVerificationView,
     SendLeaderVerificationView,
@@ -62,6 +63,11 @@ urlpatterns = [
     ),
     path("me/", MeView.as_view(), name="me"),
     # Team Lists
+    path(
+        "team/<str:team_code>/rotate-code/",
+        RotateTeamCodeView.as_view(),
+        name="rotate-team-code",
+    ),
     path(
         "team/<str:team_code>/all-members/",
         TeamAllMembersView.as_view(),

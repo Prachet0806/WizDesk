@@ -5,6 +5,7 @@ import os
 os.environ["SECRET_KEY"] = "isolated-tests-only-key-do-not-use-in-production-123456789"
 os.environ["SIMPLE_JWT_SIGNING_KEY"] = os.environ["SECRET_KEY"]
 os.environ["DATABASE_URL"] = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
+os.environ["DEBUG"] = "True"  # The isolated test database is intentionally allowed.
 os.environ["CACHE_URL"] = ""
 os.environ["JWT_ROTATE_REFRESH_TOKENS"] = "True"
 os.environ["JWT_BLACKLIST_AFTER_ROTATION"] = "True"

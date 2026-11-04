@@ -18,7 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
-from users.views import EligibleTokenRefreshView, HealthCheckView, LivenessView
+from users.views import CsrfCookieView, EligibleTokenRefreshView, HealthCheckView, LivenessView
 
 
 # Custom 404 handler
@@ -35,6 +35,7 @@ urlpatterns = [
     # Health and readiness probes for the deployment platform.
     path("health/", LivenessView.as_view(), name="health"),
     path("ready/", HealthCheckView.as_view(), name="ready"),
+    path("api/auth/csrf/", CsrfCookieView.as_view(), name="csrf-cookie"),
     # Static Frontend Routes (Priority)
     path("", TemplateView.as_view(template_name="index.html"), name="index"),
     path("index.html", TemplateView.as_view(template_name="index.html")),

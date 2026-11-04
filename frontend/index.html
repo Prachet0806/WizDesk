@@ -344,8 +344,6 @@
                             return;
                         }
                         showMessage('Login successful! Redirecting...', 'success');
-                        localStorage.setItem('token', result.token);
-                        localStorage.setItem('refresh', result.refresh);
                         localStorage.setItem('user', JSON.stringify(result.user));
                         setTimeout(() => { window.location.href = 'leader-dashboard.html'; }, 800);
                     } else {
@@ -397,8 +395,6 @@
                             return;
                         }
                         showMessage('Login successful! Redirecting...', 'success');
-                        localStorage.setItem('token', result.token);
-                        localStorage.setItem('refresh', result.refresh);
                         localStorage.setItem('user', JSON.stringify(result.user));
                         setTimeout(() => { window.location.href = 'member-dashboard.html'; }, 800);
                     } else {

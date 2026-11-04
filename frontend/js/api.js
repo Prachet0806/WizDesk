@@ -2,6 +2,9 @@
 (() => {
   'use strict';
   const nativeFetch = window.fetch.bind(window);
+  // Remove credentials written by the previous browser-token implementation.
+  localStorage.removeItem('token');
+  localStorage.removeItem('refresh');
   let refreshPromise = null;
   let requestFailures = 0;
   let requestCount = 0;
@@ -20,35 +23,30 @@
     return response;
   }
   function clearSession() {
-    ['token', 'refresh', 'user'].forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem('user');
     timers.forEach(clearTimeout);
     timers.clear();
   }
-  const sessionSnapshot = () => ['token', 'refresh', 'user'].map(key => localStorage.getItem(key));
-  const sameSession = snapshot => snapshot.every((value, index) => value === sessionSnapshot()[index]);
+  const sessionSnapshot = () => localStorage.getItem('user');
+  const sameSession = snapshot => snapshot === sessionSnapshot();
   function expired(snapshot) {
     if (snapshot && !sameSession(snapshot)) throw new Error('Session changed while renewing credentials.');
     clearSession();
     location.assign('/index.html');
     throw new Error('Session expired. Please sign in again.');
   }
-  async function rotate(oldAccess, snapshot) {
+  function csrfToken() {
+    return document.cookie.split('; ').find(value => value.startsWith('csrftoken='))?.slice(10) || '';
+  }
+  async function rotate(snapshot) {
     const run = async () => {
       if (!sameSession(snapshot)) throw new Error('Session changed while renewing credentials.');
-      if (localStorage.getItem('token') && localStorage.getItem('token') !== oldAccess) return localStorage.getItem('token');
-      const refresh = localStorage.getItem('refresh');
-      if (!refresh) return expired(snapshot);
       const response = await apiFetch('/api/token/refresh/', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh}), signal: AbortSignal.timeout(10000)
+        method: 'POST', headers: {'X-CSRFToken': csrfToken()}, signal: AbortSignal.timeout(10000)
       });
       if (response.status === 401 || response.status === 403) return expired(snapshot);
       if (!response.ok) throw new Error('Unable to renew session. Please retry.');
-      const data = await response.json();
-      // A late response from an old identity must not clear or replace a newer session.
-      if (!sameSession(snapshot) || localStorage.getItem('refresh') !== refresh) throw new Error('Session changed while renewing credentials.');
-      localStorage.setItem('token', data.access);
-      if (data.refresh) localStorage.setItem('refresh', data.refresh);
-      return data.access;
+      if (!sameSession(snapshot)) throw new Error('Session changed while renewing credentials.');
     };
     if (!refreshPromise) {
       refreshPromise = (navigator.locks ? navigator.locks.request('wizdesk-refresh', run) : run()).finally(() => {refreshPromise = null;});
@@ -66,15 +64,18 @@
     if (!url) return nativeFetch(resource, options);
     const publicRequest = publicPaths.some(path => url.pathname.startsWith('/api' + path));
     let requestSession = sessionSnapshot();
-    const token = localStorage.getItem('token');
     const headers = new Headers(options.headers || (resource instanceof Request ? resource.headers : undefined));
-    if (token && !publicRequest) headers.set('Authorization', `Bearer ${token}`);
+    const method = (options.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+      if (!csrfToken() && url.pathname !== '/api/auth/csrf/') await apiFetch('/api/auth/csrf/');
+      headers.set('X-CSRFToken', csrfToken());
+    }
     const config = {...options, headers};
     let response = await apiFetch(resource, config);
     if (!publicRequest && !sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
     if (response.status === 401 && !publicRequest) {
       if (!sameSession(requestSession)) throw new Error('Session changed while the request was in progress.');
-      headers.set('Authorization', `Bearer ${await rotate(token, requestSession)}`);
+      await rotate(requestSession);
       requestSession = sessionSnapshot();
       response = await apiFetch(resource, config);
       if (response.status === 401) return expired(sessionSnapshot());
@@ -132,14 +133,11 @@
     return () => {stopped = true; clearTimeout(timer); timers.delete(timer);};
   }
   async function logout() {
-    const refresh = localStorage.getItem('refresh');
-    clearSession();
-    try {
-      if (refresh) await nativeFetch('/api/auth/logout/', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refresh}), signal: AbortSignal.timeout(5000)});
-    } finally {location.assign('/index.html');}
+    try { await request('/api/auth/logout/', {method: 'POST', signal: AbortSignal.timeout(5000)}); }
+    finally {clearSession(); location.assign('/index.html');}
   }
   async function initialize(role) {
-    if (!localStorage.getItem('token')) {location.assign('/index.html'); return null;}
+    await request('/api/auth/csrf/');
     const response = await request('/api/auth/me/');
     if (!response.ok) throw new Error('Unable to load your account.');
     const user = await response.json();

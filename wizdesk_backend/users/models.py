@@ -11,7 +11,7 @@ class Team(models.Model):
     name = models.CharField(max_length=255)
     # leader will be a ForeignKey to User, but User is defined below. We use string reference.
     leader = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="led_teams", null=True
+        "User", on_delete=models.PROTECT, related_name="led_teams", null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

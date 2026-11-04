@@ -257,6 +257,9 @@
             const sidebarAvatar = document.getElementById('sidebarAvatar');
             if (sidebarAvatar && currentUser.name) sidebarAvatar.textContent = currentUser.name.charAt(0).toUpperCase();
             document.getElementById('teamCodeDisplay').textContent = currentUser.team_code;
+            document.getElementById('rotateTeamCodeBtn').addEventListener('click', () => {
+                showConfirmModal('Rotate join code', 'The current code will stop accepting new requests. Share the new code with invited members.', rotateTeamCode);
+            });
 
             // Navigation (V2 sidebar-item anchors)
             document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -326,6 +329,21 @@ function showLogoutConfirmation() {
                     filterPerformanceData();
                 });
             });
+        }
+
+        async function rotateTeamCode() {
+            const previousCode = currentUser.team_code;
+            try {
+                const response = await fetch(`${API_BASE}/auth/team/${encodeURIComponent(previousCode)}/rotate-code/`, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Could not rotate the join code.');
+                currentUser.team_code = data.team_code;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                document.getElementById('teamCodeDisplay').textContent = data.team_code;
+                showMessage('Join code rotated. Share the new code with members.');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
         }
 
         async function loadTeamData() {
@@ -2074,7 +2092,6 @@ function showLogoutConfirmation() {
                             method: 'POST',
                             headers: { 
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
                             },
                             body: JSON.stringify({ action: action })
                         });

@@ -1,7 +1,7 @@
 (() => {
-  const query = new URLSearchParams(location.search);
-  const uid = query.get('uid');
-  const token = query.get('token');
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  const uid = fragment.get('uid');
+  const token = fragment.get('token');
   if (uid || token) history.replaceState(null, '', location.pathname);
 
   const requestForm = document.getElementById('request-form');

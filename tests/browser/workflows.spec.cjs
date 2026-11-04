@@ -22,6 +22,19 @@ test('leader dashboard loads all pages and slash aliases resolve assets', async 
   expect(errors).toEqual([]);
 });
 
+test('leader can rotate the join code from the members screen', async ({page}) => {
+  await login(page, 'leader');
+  await page.route('**/api/auth/team/BROWSE/rotate-code/', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({team_code: 'NEWCODE8'})
+  }));
+  await page.locator('[data-tab="members"]').click();
+  await page.locator('#rotateTeamCodeBtn').click();
+  await expect(page.locator('#confirmModal')).toBeVisible();
+  await page.locator('#confirmProceedBtn').click();
+  await expect(page.locator('#teamCodeDisplay')).toHaveText('NEWCODE8');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('user')).team_code)).toBe('NEWCODE8');
+});
+
 test('edit modal renders hostile text safely and saves additions and removals together', async ({page}) => {
   await login(page, 'leader');
   await expect.poll(() => page.evaluate(() => allTasks.length)).toBeGreaterThanOrEqual(25);

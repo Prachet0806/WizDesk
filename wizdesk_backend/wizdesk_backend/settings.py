@@ -32,6 +32,8 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+if not DEBUG and not os.getenv("DATABASE_URL"):
+    raise RuntimeError("DATABASE_URL is required when DEBUG=False")
 
 ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
@@ -128,10 +130,14 @@ ROOT_URLCONF = "wizdesk_backend.urls"
 DATABASES = {
     "default": dj_database_url.config(
         default="sqlite:///" + str(BASE_DIR / "db.sqlite3"),
-        conn_max_age=600,
+        conn_max_age=0,
         conn_health_checks=True,
     )
 }
+if not DEBUG and DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
+    raise RuntimeError("PostgreSQL DATABASE_URL is required when DEBUG=False")
+if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 
 # Security headers (production)
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False") == "True"

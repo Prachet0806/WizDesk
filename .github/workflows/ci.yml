@@ -31,7 +31,7 @@ jobs:
         working-directory: wizdesk_backend
         env:
           SECRET_KEY: ci-only-key-for-static-checks-never-use-in-production-0123456789
-          DATABASE_URL: "sqlite:///:memory:"
+          DATABASE_URL: postgresql://wizdesk_test:tests-only@localhost:5432/postgres
           ALLOWED_HOSTS: localhost,127.0.0.1
           CSRF_TRUSTED_ORIGINS: http://localhost,http://127.0.0.1
           DEBUG: "False"
@@ -92,6 +92,29 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -t wizdesk:test .
+      - name: Run production release contract against disposable PostgreSQL
+        run: |
+          docker run --rm --network host \
+            -e SECRET_KEY=ci-docker-test-key-do-not-use-in-production-0123456789 \
+            -e DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
+            -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
+            -e DEBUG=False \
+            -e ALLOWED_HOSTS=wizdesk.example.com \
+            -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com \
+            -e FRONTEND_URL=https://wizdesk.example.com \
+            -e SECURE_SSL_REDIRECT=True \
+            -e SESSION_COOKIE_SECURE=True \
+            -e CSRF_COOKIE_SECURE=True \
+            -e SECURE_HSTS_SECONDS=31536000 \
+            -e SECURE_HSTS_INCLUDE_SUBDOMAINS=False \
+            -e SECURE_HSTS_PRELOAD=False \
+            -e WEB_CONCURRENCY=1 \
+            -e EMAIL_VERIFICATION_REQUIRED=True \
+            -e EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend \
+            -e EMAIL_HOST_USER=resend \
+            -e EMAIL_HOST_PASSWORD=ci-only \
+            -e DEFAULT_FROM_EMAIL=noreply@wizdesk.example.com \
+            wizdesk:test /app/release.sh
       - name: Run container with production-like config
         run: |
           docker run -d --name wizdesk-test --network host \
@@ -119,8 +142,6 @@ jobs:
           echo "Application did not become healthy" >&2
           docker logs wizdesk-test --tail 50 || true
           exit 1
-      - name: Run database migrations
-        run: docker exec wizdesk-test python manage.py migrate --noinput
       - name: Smoke test endpoints
         run: |
           curl -sf http://localhost:8000/health/

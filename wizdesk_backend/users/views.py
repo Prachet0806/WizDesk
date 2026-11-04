@@ -11,6 +11,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
+from django.middleware.csrf import get_token
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -362,7 +363,7 @@ class PasswordResetRequestView(PublicView):
         ):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            link = f"{settings.FRONTEND_URL}/reset-password.html?uid={uid}&token={token}"
+            link = f"{settings.FRONTEND_URL}/reset-password.html#uid={uid}&token={token}"
             try:
                 send_mail(
                     "Reset your WizDesk password",
@@ -417,6 +418,8 @@ class LoginView(PublicView):
     throttle_scope = "auth"
 
     def post(self, request):
+        from .authentication import EligibleJWTAuthentication
+        EligibleJWTAuthentication().enforce_csrf(request)
         email = serializers.EmailField().run_validation(request.data.get("email"))
         password = serializers.CharField(trim_whitespace=False).run_validation(
             request.data.get("password")
@@ -447,15 +450,36 @@ class LoginView(PublicView):
         refresh = RefreshToken.for_user(user)
         data = UserSerializer(user).data
         data.update(team_code=user.team.code, team_name=user.team.name)
-        return Response(
-            {"token": str(refresh.access_token), "refresh": str(refresh), "user": data}
-        )
+        response = Response({"user": data})
+        set_auth_cookies(response, refresh)
+        get_token(request._request)
+        return response
 
 
-class EligibleTokenRefreshView(TokenRefreshView):
-    serializer_class = EligibleTokenRefreshSerializer
-    authentication_classes = []
+def set_auth_cookies(response, refresh):
+    response.set_cookie("wizdesk_access", str(refresh.access_token), httponly=True, secure=not settings.DEBUG, samesite="Lax", path="/")
+    response.set_cookie("wizdesk_refresh", str(refresh), httponly=True, secure=not settings.DEBUG, samesite="Lax", path="/api/token/refresh/")
+
+
+class CsrfCookieView(PublicView):
+    def get(self, request):
+        return Response({"csrfToken": get_token(request._request)})
+
+
+class EligibleTokenRefreshView(PublicView):
     throttle_scope = "auth"
+
+    def post(self, request):
+        from .authentication import EligibleJWTAuthentication
+        EligibleJWTAuthentication().enforce_csrf(request)
+        serializer = EligibleTokenRefreshSerializer(data={"refresh": request.COOKIES.get("wizdesk_refresh", "")})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        response = Response({"refreshed": True})
+        response.set_cookie("wizdesk_access", data["access"], httponly=True, secure=not settings.DEBUG, samesite="Lax", path="/")
+        if data.get("refresh"):
+            response.set_cookie("wizdesk_refresh", data["refresh"], httponly=True, secure=not settings.DEBUG, samesite="Lax", path="/api/token/refresh/")
+        return response
 
 
 class LogoutView(APIView):
@@ -464,11 +488,16 @@ class LogoutView(APIView):
     throttle_scope = "auth"
 
     def post(self, request):
+        from .authentication import EligibleJWTAuthentication
+        EligibleJWTAuthentication().enforce_csrf(request)
         try:
-            RefreshToken(request.data.get("refresh", "")).blacklist()
+            RefreshToken(request.COOKIES.get("wizdesk_refresh", "")).blacklist()
         except (TokenError, TypeError):
             pass  # Idempotent logout, including expired tokens.
-        return Response(status=204)
+        response = Response(status=204)
+        response.delete_cookie("wizdesk_access", path="/")
+        response.delete_cookie("wizdesk_refresh", path="/api/token/refresh/")
+        return response
 
 
 class MeView(APIView):
@@ -534,6 +563,34 @@ class TeamAllMembersView(APIView):
             )
         )
         return paginated(request, qs.order_by("date_joined", "pk"), UserSerializer)
+
+
+class RotateTeamCodeView(APIView):
+    permission_classes = [IsTeamLeader]
+    throttle_scope = "mutation"
+
+    @transaction.atomic
+    def post(self, request, team_code):
+        actor = lock_current_leader(request.user)
+        team = Team.objects.select_for_update().get(pk=actor.team_id)
+        if team.code != team_code:
+            raise PermissionDenied("The team code has changed. Refresh and try again.")
+        for _ in range(5):
+            code = "".join(
+                secrets.choice(string.ascii_uppercase + string.digits)
+                for _ in range(8)
+            )
+            if code == team.code:
+                continue
+            try:
+                with transaction.atomic():
+                    team.code = code
+                    team.save(update_fields=["code"])
+                record_audit(actor, team, "team.code_rotated", team)
+                return Response({"team_code": code})
+            except IntegrityError:
+                continue
+        raise Conflict("Could not allocate a new team code. Try again.")
 
 
 class TeamApprovedMembersView(APIView):

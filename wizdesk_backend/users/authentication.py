@@ -5,11 +5,28 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import get_md5_hash_password
+from rest_framework.authentication import CSRFCheck
 
 from .permissions import eligible
 
 
 class EligibleJWTAuthentication(JWTAuthentication):
+    def authenticate(self, request):
+        raw = request.COOKIES.get("wizdesk_access")
+        if not raw:
+            return super().authenticate(request)
+        self.enforce_csrf(request)
+        validated = self.get_validated_token(raw)
+        return self.get_user(validated), validated
+
+    def enforce_csrf(self, request):
+        check = CSRFCheck(lambda req: None)
+        django_request = getattr(request, "_request", request)
+        check.process_request(django_request)
+        reason = check.process_view(django_request, lambda req: None, (), {})
+        if reason:
+            raise AuthenticationFailed(f"CSRF Failed: {reason}")
+
     def get_user(self, validated_token):
         user = super().get_user(validated_token)
         if not eligible(user):
