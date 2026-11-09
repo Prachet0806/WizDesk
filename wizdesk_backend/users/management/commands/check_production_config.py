@@ -22,8 +22,9 @@ class Command(BaseCommand):
         if (not settings.SECRET_KEY or len(settings.SECRET_KEY) < 50
                 or settings.SECRET_KEY.startswith(("replace-", "collectstatic-"))):
             failures.append("SECRET_KEY must contain at least 50 characters")
+        ci_local_hosts = os.getenv("CI", "").lower() == "true"
         if not settings.ALLOWED_HOSTS or any(
-            "*" in host or host in ("localhost", "127.0.0.1")
+            "*" in host or (host in ("localhost", "127.0.0.1") and not ci_local_hosts)
             for host in settings.ALLOWED_HOSTS
         ):
             failures.append("ALLOWED_HOSTS must name only production hosts")

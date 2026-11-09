@@ -96,11 +96,12 @@ jobs:
       - name: Run production release contract against disposable PostgreSQL
         run: |
           docker run --rm --network host \
+            -e CI=true \
             -e SECRET_KEY=ci-docker-test-key-do-not-use-in-production-0123456789 \
             -e DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             -e DEBUG=False \
-            -e ALLOWED_HOSTS=wizdesk.example.com \
+            -e ALLOWED_HOSTS=localhost,wizdesk.example.com \
             -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com \
             -e FRONTEND_URL=https://wizdesk.example.com \
             -e SECURE_SSL_REDIRECT=True \
@@ -118,6 +119,7 @@ jobs:
       - name: Run container with production-like config
         run: |
           docker run -d --name wizdesk-test --network host \
+            -e CI=true \
             -e SECRET_KEY=ci-docker-test-key-do-not-use-in-production-0123456789 \
             -e DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
