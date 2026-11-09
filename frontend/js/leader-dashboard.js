@@ -512,19 +512,27 @@ function showLogoutConfirmation() {
 
         function calculateProgress(task) {
             if (task.subtasks.length === 0) return task.status === 'completed' ? 100 : 0;
-            const completed = task.subtasks.filter(st => st.status === 'completed').length;
-            return Math.round((completed / task.subtasks.length) * 100);
+            // Parent completion is derived from progress on the server. Use the
+            // same field here so a stale subtask status cannot display 100%.
+            const completed = task.subtasks.filter(st => st.progress === 'completed').length;
+            if (completed === task.subtasks.length) return 100;
+            return Math.min(99, Math.round((completed / task.subtasks.length) * 100));
+        }
+
+        function displayTaskStatus(task) {
+            if (task.status === 'archived' || !task.subtasks?.length) return task.status;
+            return task.subtasks.every(st => st.progress === 'completed') ? 'completed' : 'active';
         }
 
         function updateDashboardStats() {
             document.getElementById('totalTasks').textContent = allTasks.length;
             
-            const activeTasks = allTasks.filter(task => task.status === 'active').length;
+            const activeTasks = allTasks.filter(task => displayTaskStatus(task) === 'active').length;
             document.getElementById('activeTasks').textContent = activeTasks;
             
             document.getElementById('teamMembers').textContent = teamMembers.length;
             
-            const completedTasks = allTasks.filter(task => task.status === 'completed').length;
+            const completedTasks = allTasks.filter(task => displayTaskStatus(task) === 'completed').length;
             document.getElementById('completedTasks').textContent = completedTasks;
         }
 
@@ -606,14 +614,14 @@ function showLogoutConfirmation() {
             // Update active tasks view if it's currently active
             const activeTasksTab = document.getElementById('active-tasks');
             if (activeTasksTab.style.display !== 'none') {
-                const activeTasks = allTasks.filter(task => task.status === 'active');
+                const activeTasks = allTasks.filter(task => displayTaskStatus(task) === 'active');
                 displayFilteredTasks(document.getElementById('activeTasksList'), activeTasks, 'active');
             }
             
             // Update completed tasks view if it's currently active
             const completedTasksTab = document.getElementById('completed-tasks');
             if (completedTasksTab.style.display !== 'none') {
-                const completedTasks = allTasks.filter(task => task.status === 'completed');
+                const completedTasks = allTasks.filter(task => displayTaskStatus(task) === 'completed');
                 displayFilteredTasks(document.getElementById('completedTasksList'), completedTasks, 'completed');
             }
         }
@@ -1135,7 +1143,7 @@ function showLogoutConfirmation() {
 
         async function loadTasksByStatus(status) {
             try {
-                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/status/${status}/`);
+                const response = await fetch(`${API_BASE}/tasks/team/${currentUser.team_code}/`);
                 if (response.ok) {
                     let data = await response.json();
                     const tasks = data.results || data;
@@ -1166,14 +1174,14 @@ function showLogoutConfirmation() {
 
         function displayActiveTasks(tasks) {
             const container = document.getElementById('activeTasksList');
-            const activeTasks = tasks.filter(task => task.status === 'active');
+            const activeTasks = tasks.filter(task => displayTaskStatus(task) === 'active');
             
             displayFilteredTasks(container, activeTasks, 'active');
         }
 
         function displayCompletedTasks(tasks) {
             const container = document.getElementById('completedTasksList');
-            const completedTasks = tasks.filter(task => task.status === 'completed');
+            const completedTasks = tasks.filter(task => displayTaskStatus(task) === 'completed');
             
             displayFilteredTasks(container, completedTasks, 'completed');
         }
@@ -1192,7 +1200,7 @@ function showLogoutConfirmation() {
             }
 
             container.innerHTML = tasks.map(task => {
-                const isCompleted = task.status === 'completed';
+                const isCompleted = displayTaskStatus(task) === 'completed';
                 const statusText = isCompleted ? 'Completed' : 'In Progress';
                 const statusClass = isCompleted ? 'status-completed' : 'status-in-progress';
 
@@ -1238,13 +1246,13 @@ function showLogoutConfirmation() {
 
         // Helper functions for task status
         function getTaskStatusClass(task) {
-            if (task.status === 'completed') return 'status-completed';
+            if (displayTaskStatus(task) === 'completed') return 'status-completed';
             if (task.status === 'archived') return 'status-available';
             return task.subtasks.some(st => st.status === 'assigned' || st.status === 'taken') ? 'status-in-progress' : 'status-available';
         }
 
         function getTaskStatusText(task) {
-            if (task.status === 'completed') return 'Completed';
+            if (displayTaskStatus(task) === 'completed') return 'Completed';
             if (task.status === 'archived') return 'Archived';
             if (task.subtasks.some(st => st.status === 'assigned' || st.status === 'taken')) return 'In Progress';
             return 'Available';

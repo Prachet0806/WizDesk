@@ -53,10 +53,10 @@ class Command(BaseCommand):
             failures.append("CORS_ALLOW_ALL_ORIGINS must be False")
         if not settings.EMAIL_VERIFICATION_REQUIRED:
             failures.append("EMAIL_VERIFICATION_REQUIRED must be True")
-        if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
-            failures.append("EMAIL_BACKEND must use SMTP")
-        if not all((settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)):
-            failures.append("SMTP credentials must be configured")
+        if settings.EMAIL_BACKEND != "anymail.backends.resend.EmailBackend":
+            failures.append("EMAIL_BACKEND must use the Resend API backend")
+        if not settings.ANYMAIL.get("RESEND_API_KEY"):
+            failures.append("RESEND_API_KEY must be configured")
         sender = parseaddr(settings.DEFAULT_FROM_EMAIL)[1]
         if not sender or "@" not in sender or sender.endswith(".local"):
             failures.append("DEFAULT_FROM_EMAIL must name a sender")
@@ -65,7 +65,7 @@ class Command(BaseCommand):
         ].endswith("LocMemCache"):
             failures.append("Multiple workers require a shared cache")
         # Django recommends preload and subdomain HSTS globally. The pilot's
-        # shared Northflank hostname intentionally uses neither; all other
+        # shared Render hostname intentionally uses neither; all other
         # deployment warnings remain release failures.
         accepted_hsts = {"security.W005", "security.W021"}
         warnings = run_checks(include_deployment_checks=True)

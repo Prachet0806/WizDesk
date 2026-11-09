@@ -39,15 +39,10 @@ ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-# Northflank may provide a full URL or a bare service domain.
-northflank_service = os.getenv("NORTHFLANK_SERVICE_URL") or os.getenv(
-    "NORTHFLANK_DOMAIN"
-)
-if northflank_service:
+render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if render_hostname:
     parsed_service = urlsplit(
-        northflank_service.strip()
-        if "://" in northflank_service
-        else f"https://{northflank_service.strip()}"
+        render_hostname if "://" in render_hostname else f"https://{render_hostname}"
     )
     if parsed_service.hostname:
         ALLOWED_HOSTS.append(parsed_service.hostname)
@@ -74,6 +69,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "anymail",
     # Local apps
     "users",
     "tasks",
@@ -209,29 +205,21 @@ EMAIL_VERIFICATION_REQUIRED = (
     os.getenv("EMAIL_VERIFICATION_REQUIRED", "False") == "True"
 )
 
-# Email delivery (Django SMTP). Required only when EMAIL_VERIFICATION_REQUIRED=True.
-# In development without SMTP credentials, Django falls back to console backend
+# Email delivery through Resend's HTTPS API in production. Required only when
+# EMAIL_VERIFICATION_REQUIRED=True. In development, Django falls back to console
 # so verification links are visible in server logs instead of leaking via API.
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
-    "django.core.mail.backends.smtp.EmailBackend"
-    if os.getenv("EMAIL_HOST_USER") or os.getenv("EMAIL_HOST")
+    "anymail.backends.resend.EmailBackend"
+    if os.getenv("RESEND_API_KEY")
     else "django.core.mail.backends.console.EmailBackend",
 )
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
-EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
-DEFAULT_FROM_EMAIL = os.getenv(
-    "DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@wizdesk.local"
-)
+ANYMAIL = {"RESEND_API_KEY": os.getenv("RESEND_API_KEY", "")}
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@wizdesk.local")
 # Frontend base URL used to build verification links sent by email.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "").rstrip("/") or (
     f"https://{parsed_service.netloc}"
-    if northflank_service and parsed_service.hostname
+    if render_hostname and parsed_service.hostname
     else ""
 )
 

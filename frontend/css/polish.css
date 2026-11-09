@@ -46,6 +46,15 @@ textarea {
   color: var(--color-text-primary);
 }
 
+/* Keep legacy dashboard controls legible against the cobalt accent. */
+.dashboard-page.dark-theme .logo::before,
+.dashboard-page.dark-theme .btn-primary,
+.dashboard-page.dark-theme .filter-btn.active,
+.dashboard-page.dark-theme .performance-filter-btn.active,
+.dashboard-page.dark-theme .member-role.leader {
+  color: var(--color-primary-text);
+}
+
 .dashboard-page * {
   transition-property: none;
 }

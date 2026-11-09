@@ -5,6 +5,23 @@ const vm = require('node:vm');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../../frontend/js/api.js'), 'utf8');
 
+test('leader task lists follow subtask progress, including stale status fields', () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, '../../frontend/js/leader-dashboard.js'), 'utf8');
+  const progress = dashboard.match(/function calculateProgress\(task\) \{[\s\S]*?\n        \}/)?.[0];
+  const status = dashboard.match(/function displayTaskStatus\(task\) \{[\s\S]*?\n        \}/)?.[0];
+  assert.ok(progress && status);
+  const context = vm.createContext({});
+  vm.runInContext(`${progress}\n${status}`, context);
+  const finished = {status: 'active', subtasks: [{status: 'taken', progress: 'completed'}]};
+  const unfinished = {status: 'active', subtasks: [{status: 'completed', progress: 'testing'}]};
+  assert.equal(context.calculateProgress(finished), 100);
+  assert.equal(context.displayTaskStatus(finished), 'completed');
+  assert.equal(context.calculateProgress(unfinished), 0);
+  assert.equal(context.displayTaskStatus(unfinished), 'active');
+  const many = {status: 'active', subtasks: Array.from({length: 200}, (_, i) => ({progress: i < 199 ? 'completed' : 'testing'}))};
+  assert.equal(context.calculateProgress(many), 99);
+});
+
 function client(fetch) {
   const data = new Map([['token', 'old-access'], ['refresh', 'old-refresh'], ['user', '{}'], ['wizdesk-theme', 'dark']]);
   const timers = new Map(); let id = 0;

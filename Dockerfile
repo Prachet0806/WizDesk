@@ -8,11 +8,12 @@ RUN pip install -r requirements.txt
 COPY --chown=appuser:appuser wizdesk_backend/ ./wizdesk_backend/
 COPY --chown=appuser:appuser frontend/ ./frontend/
 COPY --chown=appuser:appuser release.sh ./release.sh
+COPY --chown=appuser:appuser render-start.sh ./render-start.sh
 COPY gunicorn.conf.py ./
-RUN chmod +x /app/release.sh
+RUN chmod +x /app/release.sh /app/render-start.sh
 WORKDIR /app/wizdesk_backend
 # Build-only secret; runtime must supply its own SECRET_KEY and DATABASE_URL.
 RUN SECRET_KEY=collectstatic-build-only-not-a-runtime-secret DEBUG=True DATABASE_URL=sqlite:///:memory: python manage.py collectstatic --noinput
 USER appuser
 EXPOSE 8000
-CMD ["gunicorn", "--config", "/app/gunicorn.conf.py", "wizdesk_backend.wsgi:application"]
+CMD ["/app/render-start.sh"]

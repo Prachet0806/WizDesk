@@ -42,7 +42,8 @@ jobs:
           SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
           SECURE_HSTS_PRELOAD: "True"
           WEB_CONCURRENCY: "1"
-          EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          EMAIL_BACKEND: anymail.backends.resend.EmailBackend
+          RESEND_API_KEY: ci-only-not-a-real-key
         run: |
           python manage.py collectstatic --noinput
           python manage.py check --deploy --fail-level WARNING
@@ -110,9 +111,8 @@ jobs:
             -e SECURE_HSTS_PRELOAD=False \
             -e WEB_CONCURRENCY=1 \
             -e EMAIL_VERIFICATION_REQUIRED=True \
-            -e EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend \
-            -e EMAIL_HOST_USER=resend \
-            -e EMAIL_HOST_PASSWORD=ci-only \
+            -e EMAIL_BACKEND=anymail.backends.resend.EmailBackend \
+            -e RESEND_API_KEY=ci-only-not-a-real-key \
             -e DEFAULT_FROM_EMAIL=noreply@wizdesk.example.com \
             wizdesk:test /app/release.sh
       - name: Run container with production-like config
@@ -120,15 +120,24 @@ jobs:
           docker run -d --name wizdesk-test --network host \
             -e SECRET_KEY=ci-docker-test-key-do-not-use-in-production-0123456789 \
             -e DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
+            -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             -e DEBUG=False \
-            -e ALLOWED_HOSTS=localhost \
-            -e CSRF_TRUSTED_ORIGINS=http://localhost \
-            -e SECURE_SSL_REDIRECT=False \
+            -e ALLOWED_HOSTS=wizdesk.example.com \
+            -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com \
+            -e SECURE_SSL_REDIRECT=True \
+            -e SESSION_COOKIE_SECURE=True \
+            -e CSRF_COOKIE_SECURE=True \
+            -e SECURE_HSTS_SECONDS=31536000 \
+            -e SECURE_HSTS_INCLUDE_SUBDOMAINS=False \
+            -e SECURE_HSTS_PRELOAD=False \
             -e WEB_CONCURRENCY=1 \
             -e CACHE_URL='' \
-            -e EMAIL_VERIFICATION_REQUIRED=False \
-            -e EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend \
-            -e FRONTEND_URL=http://localhost \
+            -e EMAIL_VERIFICATION_REQUIRED=True \
+            -e EMAIL_BACKEND=anymail.backends.resend.EmailBackend \
+            -e RESEND_API_KEY=ci-only-not-a-real-key \
+            -e DEFAULT_FROM_EMAIL=noreply@wizdesk.example.com \
+            -e FRONTEND_URL=https://wizdesk.example.com \
+            -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             wizdesk:test
       - name: Wait for application to start
         run: |

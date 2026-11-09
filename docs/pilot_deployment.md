@@ -1,31 +1,40 @@
-# WizDesk pilot deployment: Northflank, Neon, Resend
+# WizDesk portfolio demo: Render, Neon, and Resend
 
-This is the release procedure for the existing single Django service. Keep credentials in Northflank secrets; do not add them to Git, command history, tickets, or test logs. Use one service replica and `WEB_CONCURRENCY=1` until throttling uses a shared cache.
+This runbook deploys the existing single Django service on Render Free, with Neon Postgres and Resend transactional email. Treat this as a portfolio/demo environment, not a production service: Render sleeps after 15 idle minutes, the filesystem is ephemeral, and the free plan can restart services.
 
-## 1. Fix the candidate
+## Before provisioning
 
-Record the full Git commit SHA and a successful GitHub Actions `Verify` run for that SHA. The combined commit-status endpoint can be empty even when Actions ran, so inspect the Actions run and its backend SQLite/PostgreSQL, browser, frontend, and Docker jobs. Create a candidate tag only after the desired code is committed. Keep the preceding image/commit available for rollback.
+Choose the Git commit for the demo and ensure all intended UI files are committed. Review GitHub Actions `Verify` for that commit. In particular, commit any untracked frontend assets referenced by HTML; Render builds from Git and will not include local-only files. Keep credentials in Render environment variables and never commit them.
 
-## 2. Provision the database
+## Neon
 
-Create a Neon project and production database. Copy its **pooled** connection string into the Northflank service as `DATABASE_URL`. Copy its **direct** connection string into the migration job as `MIGRATION_DATABASE_URL`. Require TLS in both connection strings. Never connect the local or CI concurrency suite to production.
+Create a Neon project and require TLS. Set the **pooled** connection URL as Render's `DATABASE_URL` for web requests. Set the **direct** URL as `MIGRATION_DATABASE_URL`; startup migration uses this connection. Keep the database and Render service in nearby regions when possible. Neon Free currently includes 1 GB per project and 100 CU-hours monthly. Review current limits before launch.
 
-Before the first release, use a disposable PostgreSQL database to run the suite with `TEST_DATABASE_URL`, then run the existing backup and restart probes against a disposable `wizdesk-pg-*` cluster. The probes are described in the README. For production, take a backup using the direct connection before every schema change, store it outside Northflank, and restore a copy into a separate database to verify both schema and representative team/task records. Record backup age and restore duration. A successful local probe does not establish Neon backup retention.
+## Resend
 
-## 3. Configure the service and migration job
+Verify a sending domain you control in Resend, add its DNS records, and create an API key. Use these Render variables:
 
-Build with the repository `Dockerfile`. The service uses the image's Gunicorn command on port `8000`; route HTTPS to it. Configure `/health/` for liveness and `/ready/` for readiness. Run one service replica with `WEB_CONCURRENCY=1`.
+```text
+EMAIL_VERIFICATION_REQUIRED=True
+EMAIL_BACKEND=anymail.backends.resend.EmailBackend
+RESEND_API_KEY=<private API key>
+DEFAULT_FROM_EMAIL=WizDesk <noreply@your-verified-domain.example>
+```
 
-Set these service secrets and environment variables, substituting your actual hostname and private values:
+The API key must remain secret. Render Free blocks common SMTP ports, so email uses Resend's HTTPS API. Test verification and password-reset delivery with real inboxes before inviting demo users.
+
+## Render web service
+
+Create one Docker web service from the repository, using the root `Dockerfile` and the Free plan. Set these environment variables, substituting the actual Render hostname:
 
 ```text
 DEBUG=False
-SECRET_KEY=<private random key of at least 50 characters>
-DATABASE_URL=<Neon pooled PostgreSQL URL>
-ALLOWED_HOSTS=<service hostname>
-CSRF_TRUSTED_ORIGINS=https://<service hostname>
-NORTHFLANK_SERVICE_URL=https://<service hostname>
-FRONTEND_URL=https://<service hostname>
+SECRET_KEY=<private random key, at least 50 characters>
+DATABASE_URL=<Neon pooled URL with TLS>
+MIGRATION_DATABASE_URL=<Neon direct URL with TLS>
+ALLOWED_HOSTS=<service>.onrender.com
+CSRF_TRUSTED_ORIGINS=https://<service>.onrender.com
+FRONTEND_URL=https://<service>.onrender.com
 SECURE_SSL_REDIRECT=True
 SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
@@ -36,54 +45,23 @@ WEB_CONCURRENCY=1
 LOG_LEVEL=INFO
 ```
 
-Do not enable HSTS subdomain coverage or preload on a shared Northflank domain. Enable them only after checking every subdomain of a domain you control. The live smoke test requires a positive HSTS `max-age`; it accepts this conservative policy. Django's generic deployment check may still warn about the deliberately disabled HSTS preload/subdomain flags. `check_production_config` is the release's mandatory gate for the concrete pilot settings.
+Set `/ready/` as the health check path. `render-start.sh` runs `release.sh`, which validates configuration against the direct database URL and applies migrations, then starts Gunicorn. Render Free does not provide a pre-deploy command or free one-off job. Startup migrations therefore run again after restarts and cold starts; Django migrations must remain repeatable. Schema changes still require review and a backup first. Use one worker because this configuration has no shared Redis cache.
 
-Create a Northflank job using the **same image build** as the service. Override its command to `/app/release.sh`. Set `MIGRATION_DATABASE_URL` to the Neon direct URL in that job, along with the service's other production settings. The script replaces `DATABASE_URL` inside the job, validates configuration, runs Django deployment checks, then runs `migrate --noinput`. Run the job to completion before starting or updating the service. Stop if validation or migration fails. Northflank supports one-off jobs and command overrides for a built image. [Northflank jobs](https://northflank.com/docs/v1/application/run/run-an-image-once-or-on-a-schedule), [command overrides](https://northflank.com/docs/v1/application/run/override-command-entrypoint)
+The web service has an ephemeral filesystem. Do not store user uploads or SQLite data there. Neon stores relational data. `/health/` checks process liveness; `/ready/` checks database readiness.
 
-## 4. Configure Resend before the release job
+## Pre-demo checks
 
-Verify a sending domain and its DNS records in Resend, then create an API key. Set these values in **both** the service and migration job so release validation uses the same email configuration:
+1. Confirm the intended frontend changes and `frontend/css/redesign.css` are committed.
+2. Review successful CI checks for the selected commit, including backend SQLite/Postgres, browser, frontend, and Docker jobs.
+3. Configure the Render and Neon variables above and wait for the first deploy and startup migration to finish.
+4. Run `python scripts/smoke_deployment.py --base-url https://<service>.onrender.com`.
+5. Use two real inboxes and separate browser profiles to register a leader and member, verify both emails, approve membership, create and complete a task, and exercise password reset.
+6. Restart the Render service and confirm both accounts and task records remain available.
 
-```text
-EMAIL_VERIFICATION_REQUIRED=True
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.resend.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_USE_SSL=False
-EMAIL_HOST_USER=resend
-EMAIL_HOST_PASSWORD=<Resend API key>
-DEFAULT_FROM_EMAIL=WizDesk <noreply@your-verified-domain.example>
-EMAIL_TIMEOUT=10
-```
+For a demo, create accounts through the normal registration flow. The `seed_test_data` command intentionally refuses to run with `DEBUG=False`.
 
-Do not use the console email backend in production: verification and reset links must not be printed in logs. Registration and resend return generic responses, and an SMTP failure leaves an unverified account eligible for resend. Verify this using a real inbox before inviting pilot users.
+## Backups and rollback
 
-## 5. Release and smoke test
+Before changing schema on a database containing demo data, take an encrypted PostgreSQL backup through Neon's direct connection and keep it outside Render. Restore a copy into a separate database and verify representative records. Render Free does not provide a persistent disk or a managed backup for this setup.
 
-After the migration job succeeds, start the service and run:
-
-```text
-python scripts/smoke_deployment.py --base-url https://<service hostname>
-```
-
-The smoke checks liveness, database readiness, CSS/JS delivery, an invalid login, and HSTS. Check application logs for startup errors and accidental secret disclosure without copying credentials into a report. A local Docker smoke and hosted CI cannot establish that the live service or Resend works.
-
-## 6. Pilot acceptance
-
-Using two real inboxes and two browser profiles on the live service:
-
-1. Register a leader, receive and use the verification link, then create a team.
-2. Register a member using the team code, receive and use the verification link, and have the leader approve membership.
-3. Have the leader create a task with multiple subtasks and assign one to the member.
-4. Have the member claim an available subtask, update progress, and complete it while the leader observes status and performance updates.
-5. Request a password reset, use the delivered link, and verify old access and refresh tokens are rejected.
-6. Rotate the join code from the leader's Members screen. Confirm the old code rejects new registration and the new code works. Existing dashboards using the old code should be refreshed.
-7. Restart the service, sign in again as both users, and confirm team, task, assignment, and audit records persist.
-8. Restore a production backup into a separate database and verify it before declaring recovery ready.
-
-Record the commit SHA, image digest, migration job run, smoke result, email delivery evidence, backup age, restore result, and any failed step. Pilot acceptance requires all steps on the live Northflank service with Neon and Resend.
-
-## Rollback
-
-If a release fails before migration, keep the previous image running. If migration completed, review whether the schema is backward compatible before redeploying the preceding image. Restore the verified pre-migration backup into a separate database first; switching production to a restored database is a deliberate operator action after checking data loss and downtime. Never assume `migrate` automatically reverses a migration.
+If a deploy fails before migrations, redeploy the last working commit. If migrations completed, check backward compatibility before rolling code back. Restore a backup to a separate database first; changing the live database is an explicit operator decision. Local Docker and CI checks do not prove the hosted app, Neon connectivity, or Resend delivery work.

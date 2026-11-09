@@ -6,7 +6,7 @@ import sys
 from django.test import SimpleTestCase
 
 
-class NorthflankSettingsTests(SimpleTestCase):
+class DeploymentSettingsTests(SimpleTestCase):
     def test_console_email_backend_is_a_deployment_warning(self):
         from django.test import override_settings
 
@@ -19,8 +19,8 @@ class NorthflankSettingsTests(SimpleTestCase):
 
     def test_service_url_normalizes_allowed_host_and_verification_origin(self):
         for service_url in (
-            "https://wizdesk.sandbox.northflank.app/",
-            "wizdesk.sandbox.northflank.app",
+            "https://wizdesk.onrender.com/",
+            "wizdesk.onrender.com",
         ):
             with self.subTest(service_url=service_url):
                 env = os.environ.copy()
@@ -28,7 +28,7 @@ class NorthflankSettingsTests(SimpleTestCase):
                     SECRET_KEY="test-only-key-for-settings-subprocess-0123456789",
                     DATABASE_URL="sqlite:///:memory:",
                     DEBUG="True",
-                    NORTHFLANK_SERVICE_URL=service_url,
+                    RENDER_EXTERNAL_HOSTNAME=service_url,
                 )
                 env.pop("FRONTEND_URL", None)
                 result = subprocess.run(
@@ -44,8 +44,8 @@ class NorthflankSettingsTests(SimpleTestCase):
                     check=True,
                 )
                 origin, hosts = json.loads(result.stdout)
-                self.assertEqual(origin, "https://wizdesk.sandbox.northflank.app")
-                self.assertIn("wizdesk.sandbox.northflank.app", hosts)
+                self.assertEqual(origin, "https://wizdesk.onrender.com")
+                self.assertIn("wizdesk.onrender.com", hosts)
 
     def test_production_requires_postgresql_url(self):
         for database_url in (None, "sqlite:///:memory:"):
@@ -81,9 +81,8 @@ class NorthflankSettingsTests(SimpleTestCase):
             SECURE_HSTS_INCLUDE_SUBDOMAINS="False",
             SECURE_HSTS_PRELOAD="False",
             EMAIL_VERIFICATION_REQUIRED="True",
-            EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
-            EMAIL_HOST_USER="resend",
-            EMAIL_HOST_PASSWORD="test-only",
+            EMAIL_BACKEND="anymail.backends.resend.EmailBackend",
+            RESEND_API_KEY="test-only",
             DEFAULT_FROM_EMAIL="WizDesk <noreply@example.com>",
             WEB_CONCURRENCY="1",
             CORS_ALLOW_ALL_ORIGINS="False",
@@ -93,6 +92,14 @@ class NorthflankSettingsTests(SimpleTestCase):
             env=env, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+        missing_key = env.copy()
+        missing_key.pop("RESEND_API_KEY")
+        invalid_email = subprocess.run(
+            [sys.executable, "manage.py", "check_production_config"],
+            env=missing_key, capture_output=True, text=True,
+        )
+        self.assertNotEqual(invalid_email.returncode, 0)
+        self.assertIn("RESEND_API_KEY", invalid_email.stderr)
         strict = env.copy()
         strict["SECURE_HSTS_INCLUDE_SUBDOMAINS"] = "True"
         strict["SECURE_HSTS_PRELOAD"] = "True"
