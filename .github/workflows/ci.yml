@@ -103,7 +103,7 @@ jobs:
             -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             -e DEBUG=False \
             -e ALLOWED_HOSTS=localhost,wizdesk.example.com \
-            -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com \
+            -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com,https://localhost:8000 \
             -e FRONTEND_URL=https://wizdesk.example.com \
             -e SECURE_SSL_REDIRECT=True \
             -e SESSION_COOKIE_SECURE=True \
@@ -126,7 +126,7 @@ jobs:
             -e MIGRATION_DATABASE_URL=postgresql://wizdesk_test:tests-only@localhost:5432/postgres \
             -e DEBUG=False \
             -e ALLOWED_HOSTS=localhost,wizdesk.example.com \
-            -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com \
+            -e CSRF_TRUSTED_ORIGINS=https://wizdesk.example.com,https://localhost:8000 \
             -e SECURE_SSL_REDIRECT=True \
             -e SESSION_COOKIE_SECURE=True \
             -e CSRF_COOKIE_SECURE=True \

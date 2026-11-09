@@ -78,11 +78,12 @@ def main():
     )
     require(csrf_status == 200, f"CSRF bootstrap returned {csrf_status}")
     csrf_token = json.loads(csrf_body)["csrfToken"]
+    request_origin = f"{args.forwarded_proto or parsed.scheme}://{parsed.netloc}"
     status, _, body = fetch(
         base_url,
         "/api/auth/login/",
         payload={"email": "nonexistent-smoke@example.invalid", "password": "wrong"},
-        headers={"X-CSRFToken": csrf_token},
+        headers={"X-CSRFToken": csrf_token, "Origin": request_origin},
         forwarded_proto=args.forwarded_proto,
     )
     require(status == 401, f"Invalid login returned {status}, expected 401")
