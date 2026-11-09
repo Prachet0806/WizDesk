@@ -1,4 +1,6 @@
 name: Deployment smoke
+permissions:
+  contents: read
 on:
   workflow_dispatch:
     inputs:
